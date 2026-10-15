@@ -3,21 +3,21 @@ En cas de conflit entre ce fichier et un skill (superpowers, etc.), ce fichier p
 
 # Projet
 Game engine Rust (Bevy, 2D) servant de socle à des jeux générés par IA. But : générer un jeu = écrire uniquement ce qui lui est spécifique (fichiers data + systèmes de gameplay). Tout ce qui est générique vit dans `engine/`.
-Point d'entrée de la doc : [INDEX.md](INDEX.md). Plan en cours : `current-task/PLAN-V1.md`.
+Point d'entrée de la doc : [INDEX.md](INDEX.md). Architecture et décisions : `docs/architecture.md`. Étapes : milestones GitHub.
 
 # Utilisation des agents
 - **Implémentation** : agents `sonnet` en effort medium par défaut, high si la tâche est complexe. Tâches bien scopées et définies : l'orchestrateur crée des tâches simples et rapides, récupère le résumé, donne la tâche suivante.
 - **Recherche** (usage d'une fonction, implémentation de référence) : `sonnet` effort medium. Pas besoin d'Opus pour chercher.
 - Les agents n'héritent pas des skills ni de ce fichier : écris dans chaque prompt de délégation "utilise le skill caveman", "lis les `.md` avec `./mdx`", les chemins utiles et les commandes de "Build, test, lint" si besoin.
 - **API Bevy** : Bevy casse son API à chaque version et la mémoire d'un modèle mélange les versions. Écris dans chaque prompt : "vérifie toute API Bevy/replicon dans les sources de la version pinée (`~/.cargo/registry/src/*/<crate>-<version>/`), pas de mémoire". Versions : `[workspace.dependencies]` du `Cargo.toml` racine.
-- Les agents n'écrivent ni JOURNAL.md, ni HANDOFF.md, ni GOAL.md, ni DOC_CURRENT_TASK.md. Ils renvoient un résumé détaillé : fichiers modifiés, build/lint lancés et résultat, points d'attention.
+- Les agents n'écrivent rien sur GitHub (issues, PR, commentaires) : c'est le rôle de l'orchestrateur. Ils renvoient un résumé détaillé : fichiers modifiés, build/lint lancés et résultat, points d'attention.
 - Les agents de recherche ne renvoient que les informations précises demandées (fichier:ligne, signature), pas de résumé de travail.
 
 # Index des documents .md
 
 ## Périmètre
-- **Indexés** : les `.md` de la racine, `docs/`, `current-task/`, `old-tasks/`, `games/*/docs/` de 80 lignes ou plus, ou qui ont déjà un index.
-- **Jamais indexés** : `CLAUDE.md`, `INDEX.md`, `conventions-docs.md`, `README.md`, tout `.md` hors des dossiers ci-dessus (`.github/`, `.claude/`, `target/`...), et tout `.md` de moins de 80 lignes sans index.
+- **Indexés** : les `.md` de la racine, `docs/`, `games/*/docs/` de 80 lignes ou plus, ou qui ont déjà un index.
+- **Jamais indexés** : `CLAUDE.md`, `INDEX.md`, `README.md`, tout `.md` hors des dossiers ci-dessus (`.github/`, `.claude/`, `target/`...), et tout `.md` de moins de 80 lignes sans index.
 - Ne lance pas `scripts/reindex.sh` sur autre chose : il modifie le fichier (entier + tableau en tête, casse le rendu GitHub/IDE).
 
 ## Écriture
@@ -59,7 +59,13 @@ Je tranche les questions à enjeu. Avant de me faire trancher, expose circonstan
 - **Grande tâche** = plus de 3 fichiers modifiés, ou client + serveur, ou engine + jeu.
 - Grande tâche : planning ; je valide ; tâche 1 ; je valide ; tâche 2 ; je valide ; etc. Arrêt à chaque étape pour me montrer l'avancée et que je teste. Doc mise à jour à chaque étape.
 - Début de tâche : rappelle-moi de renommer la conversation avec le n° d'issue GitHub (`/rename`). Tu ne peux pas le faire toi-même.
-- Fichiers de suivi orchestrateur (JOURNAL.md, HANDOFF.md, GOAL.md, DOC_CURRENT_TASK.md) : dans `current-task/`. En fin de tâche, `current-task/` est déplacé dans `old-tasks/<n°issue>-<slug>/`.
+
+## GitHub = suivi des tâches
+Pas de fichiers de suivi dans le repo : l'issue est la tâche en cours, la PR mergée est la tâche archivée.
+- **1 tâche = 1 issue** (template "Tâche") : objectif, critères d'acceptation, hors périmètre. Labels : un type (`enhancement`, `bug`, `documentation`, `chore`) + une ou plusieurs `area:*`. Milestone de l'étape.
+- Question à enjeu non tranchée → label `enjeu` ; bloquée → `blocked`. Labels et milestones se modifient dans `.github/labels.tsv` / `.github/milestones.tsv` (synchro par le workflow `repo-meta`), jamais à la main.
+- **Suivi** (avancement, décisions prises, handoff, points ouverts) : commentaires sur l'issue, ou sur la PR une fois ouverte. Pour reprendre une tâche : lis l'issue, ses commentaires et la PR liée.
+- **PR** : une par issue, template rempli, `Closes #n`. CI + review Claude automatiques. Traite les retours de la review avant de me la présenter. Je merge.
 
 ## Orchestrateur
 - Tu es orchestrateur : récupérer l'info résumée de ce qui a été fait, créer des tâches faciles, assigner.

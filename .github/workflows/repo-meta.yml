@@ -13,11 +13,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Secrets Claude présents
-        run: |
-          echo "CLAUDE_CODE_OAUTH_TOKEN=${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}"
-          echo "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY != '' }}"
+      - uses: actions/checkout@v5
       - name: Labels
         run: |
           grep -v '^#' .github/labels.tsv | while IFS=$'\t' read -r name color desc; do

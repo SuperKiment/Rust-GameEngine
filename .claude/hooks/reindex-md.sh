@@ -6,7 +6,7 @@ root="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}"
 rel="${f#"$root"/}"
 case "$(basename "$rel")" in CLAUDE.md|INDEX.md|README.md|conventions-docs.md) exit 0 ;; esac
 case "$rel" in
-  */*) case "$rel" in docs/*|current-task/*|old-tasks/*|games/*/docs/*) ;; *) exit 0 ;; esac ;;
+  */*) case "$rel" in docs/*|games/*/docs/*) ;; *) exit 0 ;; esac ;;
 esac
 if [[ "$(head -1 "$f")" =~ ^[0-9]+$ ]] || [ "$(wc -l < "$f")" -ge 80 ]; then
   bash "$root/scripts/reindex.sh" "$f"
