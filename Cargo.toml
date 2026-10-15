@@ -1,0 +1,21 @@
+[workspace]
+resolver = "3"
+members = ["engine", "engine/common", "engine/server", "engine/client"]
+
+[workspace.package]
+edition = "2024"
+version = "0.1.0"
+
+[workspace.dependencies]
+bevy = { version = "0.20", default-features = false }
+bevy_replicon = "0.45"
+bevy_replicon_quinnet = "0.21"
+bevy_egui = "0.43"
+serde = { version = "1", features = ["derive"] }
+ron = "0.12"
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
