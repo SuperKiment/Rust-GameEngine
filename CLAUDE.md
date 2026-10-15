@@ -89,7 +89,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all --check
 cargo test --workspace
 ```
-- Lancer un jeu : `cargo run -p sample -- host | server | client <addr>`.
+- Lancer un jeu : `cargo run -p sample -- host [port] | server [port] | client <ip[:port]>` (port par défaut 5000).
 - Linux : Bevy demande `libudev-dev libwayland-dev libxkbcommon-dev` (pas d'audio, donc pas d'alsa). Rust ≥ 1.97.1 (exigé par Bevy 0.20).
 - Premier build Bevy long (plusieurs minutes) : lance-le en arrière-plan, ne conclus pas à un blocage.
 - Tests = headless (serveur sans fenêtre). Ce qui demande une fenêtre se teste à la main (voir Orchestrateur).

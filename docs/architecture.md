@@ -9,9 +9,9 @@
 | 63-64 | 3. Briques |
 | 65-69 | — World 2D |
 | 70-87 | — Data-driven (defs RON) |
-| 88-93 | — Réseau |
-| 94-96 | — UI |
-| 97-106 | 4. Décisions (validées 2026-10-15) |
+| 88-96 | — Réseau |
+| 97-99 | — UI |
+| 100-109 | 4. Décisions (validées 2026-10-15) |
 
 # Architecture du moteur
 
@@ -52,11 +52,11 @@ games/
 ### Modes de lancement (un seul binaire par jeu)
 | Commande | Plugins |
 |---|---|
-| `cargo run -p sample -- host` (défaut) | `DefaultPlugins` (fenêtre) + `ServerPlugin` + `ClientPlugin`. Solo = host sans autre joueur. |
-| `cargo run -p sample -- server` | `MinimalPlugins` (boucle 64 Hz = pas de `FixedUpdate`) + `LogPlugin` + `ServerPlugin`, sans fenêtre. |
-| `cargo run -p sample -- client <addr>` | `DefaultPlugins` + `ClientPlugin`. `<addr>` obligatoire. |
+| `cargo run -p sample -- host [port]` (défaut) | `DefaultPlugins` (fenêtre) + `NetPlugin` + `ServerPlugin` + `ClientPlugin`. Écoute sur `0.0.0.0:<port>`. Solo = host sans autre joueur. |
+| `cargo run -p sample -- server [port]` | `MinimalPlugins` (boucle 64 Hz = pas de `FixedUpdate`) + `LogPlugin` + `NetPlugin` + `ServerPlugin`, sans fenêtre. Écoute sur `0.0.0.0:<port>`. |
+| `cargo run -p sample -- client <ip[:port]>` | `DefaultPlugins` + `NetPlugin` + `ClientPlugin`. `<ip>` obligatoire (`localhost` accepté, IPv6 : `[::1]:6000`). |
 
-Le réseau (rejoindre `<addr>`) arrive en M3.
+Port par défaut : `DEFAULT_PORT` = 5000 (`engine/common/src/net.rs`), pris quand `[port]` ou `:port` est absent. Port occupé : le `server` quitte avec une erreur, le `host` log l'erreur et reste jouable en solo (sans accueillir de client).
 
 Limite connue : un seul binaire par jeu, donc le mode `server` d'un jeu lie quand même `bevy_render` (seul `engine_server` en est exempt). Serveur sans rendu = features cargo sur `engine` ou binaire serveur séparé : question à enjeu, non traitée en V1.
 
@@ -88,6 +88,9 @@ Def d'entité = prototype `assets/defs/<id>.def.ron` ; **l'id est le nom du fich
 ### Réseau
 - `bevy_replicon` : réplication serveur-autoritaire des composants enregistrés.
 - Transport : bevy_replicon_quinnet (QUIC) (D1).
+- Réel aujourd'hui : `NetPlugin` (`engine/common/src/net.rs` = `RepliconPlugins` + `RepliconQuinnetPlugins`), ajouté une seule fois par `EnginePlugin` dans les 3 modes. `ServerPlugin` ouvre l'endpoint (host/server), `ClientPlugin` ouvre la connexion (client). Le host n'ouvre aucune connexion : son joueur local est `ClientId::Server`. Connexions et déconnexions loggées côté serveur. `engine_common` ré-exporte `bevy_replicon`, `bevy_replicon_quinnet` et `bevy_quinnet`.
+- Sécurité : certificat serveur auto-signé, jamais vérifié par le client (`SkipVerification`). LAN/dev uniquement : pas d'authentification du serveur (attaque de l'homme du milieu possible), à revoir avant tout jeu en ligne public.
+- Test : `engine/tests/net.rs` (serveur + client réels sur localhost, port choisi par l'OS).
 - Connexion : un client connecté → le serveur spawn l'entité joueur (def `player` du jeu) et la lie au client.
 - Hors V1 : prédiction client / interpolation (le jeu sera net en LAN, latence visible en distant).
 
