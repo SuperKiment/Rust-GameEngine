@@ -66,6 +66,7 @@ Pas de fichiers de suivi dans le repo : l'issue est la tâche en cours, la PR me
 - Question à enjeu non tranchée → label `enjeu` ; bloquée → `blocked`. Labels et milestones se modifient dans `.github/labels.tsv` / `.github/milestones.tsv` (synchro par le workflow `repo-meta`), jamais à la main.
 - **Suivi** (avancement, décisions prises, handoff, points ouverts) : commentaires sur l'issue, ou sur la PR une fois ouverte. Pour reprendre une tâche : lis l'issue, ses commentaires et la PR liée.
 - **PR** : une par issue, template rempli, `Closes #n`. CI + review Claude automatiques. Traite les retours de la review avant de me la présenter. Je merge.
+- **Review Claude** : check vert ≠ review faite, la preuve est le commentaire de synthèse sur la PR. Une PR qui modifie `.github/workflows/claude-review.yml` n'est jamais reviewée (l'action exige un fichier identique à `main`) : relecture humaine.
 
 ## Orchestrateur
 - Tu es orchestrateur : récupérer l'info résumée de ce qui a été fait, créer des tâches faciles, assigner.
