@@ -1,0 +1,8 @@
+(
+  visual: Rect(size: (8.0, 16.0), color: "#ffffff"),
+  layer: 2,
+  components: {
+    "TestHealth": (30),
+    "TestTag": (),
+  },
+)

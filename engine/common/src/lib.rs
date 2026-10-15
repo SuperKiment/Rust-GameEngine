@@ -2,6 +2,13 @@
 
 use bevy::prelude::*;
 
+pub mod defs;
+pub mod spawn;
+pub mod world;
+pub use defs::{DefRegistry, DefsPlugin, EngineState, EntityDef, Visual};
+pub use spawn::{DefId, SpawnDef};
+pub use world::{Position, Rotation, Velocity, WorldConfig};
+
 /// Mode de lancement du binaire d'un jeu.
 #[derive(Resource, Clone, Debug, PartialEq)]
 pub enum Mode {

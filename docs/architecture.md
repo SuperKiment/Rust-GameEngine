@@ -8,10 +8,10 @@
 | 52-62 | — Modes de lancement (un seul binaire par jeu) |
 | 63-64 | 3. Briques |
 | 65-69 | — World 2D |
-| 70-86 | — Data-driven (defs RON) |
-| 87-92 | — Réseau |
-| 93-95 | — UI |
-| 96-105 | 4. Décisions (validées 2026-10-15) |
+| 70-87 | — Data-driven (defs RON) |
+| 88-93 | — Réseau |
+| 94-96 | — UI |
+| 97-106 | 4. Décisions (validées 2026-10-15) |
 
 # Architecture du moteur
 
@@ -53,7 +53,7 @@ games/
 | Commande | Plugins |
 |---|---|
 | `cargo run -p sample -- host` (défaut) | `DefaultPlugins` (fenêtre) + `ServerPlugin` + `ClientPlugin`. Solo = host sans autre joueur. |
-| `cargo run -p sample -- server` | `MinimalPlugins` (boucle 60 Hz) + `LogPlugin` + `ServerPlugin`, sans fenêtre. |
+| `cargo run -p sample -- server` | `MinimalPlugins` (boucle 64 Hz = pas de `FixedUpdate`) + `LogPlugin` + `ServerPlugin`, sans fenêtre. |
 | `cargo run -p sample -- client <addr>` | `DefaultPlugins` + `ClientPlugin`. `<addr>` obligatoire. |
 
 Le réseau (rejoindre `<addr>`) arrive en M3.
@@ -68,12 +68,11 @@ Limite connue : un seul binaire par jeu, donc le mode `server` d'un jeu lie quan
 - Profondeur d'affichage : `layer` dans la def → `z` du `Transform`.
 
 ### Data-driven (defs RON)
-Def d'entité = prototype. Les composants sont résolus par **réflexion Bevy** via leur nom court :
+Def d'entité = prototype `assets/defs/<id>.def.ron` ; **l'id est le nom du fichier** (pas de champ `id`). Les composants sont résolus par **réflexion Bevy** (nom court ou complet) :
 ```ron
-// games/sample/assets/defs/goblin.def.ron
+// games/sample/assets/defs/goblin.def.ron  ->  id "goblin"
 (
-  id: "goblin",
-  visual: Shape(circle: 12.0, color: "#3a3"),
+  visual: Circle(radius: 12.0, color: "#3a3"),
   layer: 1,
   components: {
     "Health": (30),
@@ -81,8 +80,10 @@ Def d'entité = prototype. Les composants sont résolus par **réflexion Bevy** 
   },
 )
 ```
-- Côté jeu : `#[derive(Component, Reflect, Serialize, Deserialize)] #[reflect(Component)] struct Health(u32);` puis **une ligne** `app.register_game_component::<Health>()` = chargeable depuis les data + répliqué.
-- `DefRegistry` (resource) chargé via l'asset server de Bevy, hot-reload en dev.
+- Côté jeu : `#[derive(Component, Reflect, Serialize, Deserialize)] #[reflect(Component)] struct Health(u32);` : chargeable depuis les data sans autre ligne (`reflect_auto_register`) ; la réplication (M3) aura son enregistrement dédié.
+- `DefRegistry` (resource) : id -> handle, via l'asset server de Bevy, hot-reload en dev. `EngineState::Loading -> Ready` quand tout est chargé.
+- Serveur : `commands.spawn_def("goblin", pos)` spawn `DefId` + `Position` + copie des composants de la def.
+- Format complet, erreurs, lancement : [data-format.md](data-format.md).
 
 ### Réseau
 - `bevy_replicon` : réplication serveur-autoritaire des composants enregistrés.

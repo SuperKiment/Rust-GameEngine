@@ -1,10 +1,11 @@
 //! Façade : un jeu ne dépend que de `engine`.
 
-use std::time::Duration;
-
-use bevy::{app::ScheduleRunnerPlugin, log::LogPlugin, prelude::*, window::WindowPlugin};
+use bevy::{
+    app::ScheduleRunnerPlugin, asset::AssetPlugin, log::LogPlugin, prelude::*,
+    state::app::StatesPlugin, window::WindowPlugin,
+};
 use engine_client::ClientPlugin;
-use engine_common::Mode;
+use engine_common::{DefsPlugin, Mode};
 use engine_server::ServerPlugin;
 
 pub use bevy;
@@ -12,7 +13,10 @@ pub use bevy;
 pub mod prelude {
     pub use super::EnginePlugin;
     pub use bevy::prelude::*;
-    pub use engine_common::Mode;
+    pub use engine_common::{
+        DefId, DefRegistry, EngineState, EntityDef, Mode, Position, Rotation, SpawnDef, Velocity,
+        Visual, WorldConfig,
+    };
 }
 
 pub struct EnginePlugin {
@@ -50,10 +54,13 @@ impl Plugin for EnginePlugin {
         match &self.mode {
             Mode::Server => {
                 app.add_plugins((
-                    MinimalPlugins.set(ScheduleRunnerPlugin::run_loop(Duration::from_secs_f64(
-                        1.0 / 60.0,
-                    ))),
+                    // Boucle calée sur le pas de FixedUpdate (64 Hz par défaut) : un tick par frame.
+                    MinimalPlugins.set(ScheduleRunnerPlugin::run_loop(
+                        Time::<Fixed>::default().timestep(),
+                    )),
                     LogPlugin::default(),
+                    AssetPlugin::default(),
+                    StatesPlugin,
                     ServerPlugin,
                 ));
             }
@@ -64,6 +71,7 @@ impl Plugin for EnginePlugin {
                 app.add_plugins((self.window_plugins(), ServerPlugin, ClientPlugin));
             }
         }
+        app.add_plugins(DefsPlugin);
     }
 }
 

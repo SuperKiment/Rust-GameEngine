@@ -1,0 +1,4 @@
+(
+  visual: Circle(radius: 12.0, color: "#33aa33"),
+  layer: 1,
+)
