@@ -2694,6 +2694,7 @@ dependencies = [
  "engine_client",
  "engine_common",
  "engine_server",
+ "serde",
 ]
 
 [[package]]

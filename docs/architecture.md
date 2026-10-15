@@ -9,9 +9,9 @@
 | 63-64 | 3. Briques |
 | 65-69 | — World 2D |
 | 70-87 | — Data-driven (defs RON) |
-| 88-97 | — Réseau |
-| 98-100 | — UI |
-| 101-110 | 4. Décisions (validées 2026-10-15) |
+| 88-98 | — Réseau |
+| 99-101 | — UI |
+| 102-111 | 4. Décisions (validées 2026-10-15) |
 
 # Architecture du moteur
 
@@ -92,7 +92,8 @@ Def d'entité = prototype `assets/defs/<id>.def.ron` ; **l'id est le nom du fich
 - Réplication : `app.register_game_component::<T>()` (trait `GameComponentExt`, dans le prelude) = `register_type` + `replicate`. `ProtocolPlugin` (inclus dans `NetPlugin`, séparable pour tester sans quinnet) enregistre `DefId`, `Position`, `Rotation`. `Velocity` n'est pas répliqué (pas de prédiction en V1). Côté client, les composants de def absents d'une entité `Remote` sont insérés depuis la copie locale des defs.
 - Sécurité : certificat serveur auto-signé, jamais vérifié par le client (`SkipVerification`). LAN/dev uniquement : pas d'authentification du serveur (attaque de l'homme du milieu possible), à revoir avant tout jeu en ligne public.
 - Tests : `engine/tests/net.rs` (serveur + client réels sur localhost, port choisi par l'OS) ; `engine/common/tests/replication.rs` (réplication des defs via le backend de test replicon, sans réseau).
-- Connexion : un client connecté → le serveur spawn l'entité joueur (def `player` du jeu) et la lie au client.
+- Joueur par client (réel) : un client autorisé → le serveur spawn l'entité joueur (def `player` du jeu, `Owner` = client) et lui envoie `OwnPlayer` ; le client pose `LocalPlayer`. Despawn à la déconnexion. Le host a son propre joueur (`ClientId::Server`), un serveur dédié aucun.
+- Inputs (réel) : `app.register_input::<I>()` (trait `GameInputExt`) ; le client écrit `MessageWriter<I>`, le serveur lit `I` comme composant du joueur. Détails, exemple et limites : [networking.md](networking.md).
 - Hors V1 : prédiction client / interpolation (le jeu sera net en LAN, latence visible en distant).
 
 ### UI

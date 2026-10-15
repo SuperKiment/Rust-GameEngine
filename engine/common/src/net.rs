@@ -1,12 +1,12 @@
 //! Réseau : réplication (replicon) sur transport QUIC (quinnet).
 
 use bevy::{prelude::*, reflect::GetTypeRegistration};
-use bevy_replicon::prelude::{AppRuleExt, RepliconPlugins};
+use bevy_replicon::prelude::{AppRuleExt, Channel, RepliconPlugins, ServerMessageAppExt};
 use bevy_replicon::shared::replication::registry::receive_fns::MutWrite;
 use bevy_replicon_quinnet::RepliconQuinnetPlugins;
 use serde::{Serialize, de::DeserializeOwned};
 
-use crate::{DefId, Position, Rotation};
+use crate::{DefId, OwnPlayer, Position, Rotation};
 
 /// Port par défaut du serveur.
 pub const DEFAULT_PORT: u16 = 5000;
@@ -30,6 +30,8 @@ impl Plugin for ProtocolPlugin {
         app.register_game_component::<DefId>()
             .register_game_component::<Position>()
             .register_game_component::<Rotation>();
+        // Dit au client quelle entité est son joueur (voir `LocalPlayer`).
+        app.add_mapped_server_message::<OwnPlayer>(Channel::Ordered);
     }
 }
 

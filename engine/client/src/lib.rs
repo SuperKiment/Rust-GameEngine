@@ -9,13 +9,14 @@ use engine_common::bevy_quinnet::client::{
 };
 use engine_common::bevy_replicon::prelude::{ClientState, RepliconChannels};
 use engine_common::bevy_replicon_quinnet::ChannelsConfigurationExt;
-use engine_common::{EngineState, Mode};
+use engine_common::{EngineState, LocalPlayer, Mode, OwnPlayer};
 
 pub struct ClientPlugin;
 
 impl Plugin for ClientPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, spawn_camera)
+            .add_systems(Update, mark_local_player)
             .add_systems(OnEnter(EngineState::Ready), connect)
             .add_systems(OnEnter(ClientState::Connected), || {
                 info!("connecté au serveur");
@@ -39,6 +40,14 @@ impl Plugin for ClientPlugin {
 
 fn spawn_camera(mut commands: Commands) {
     commands.spawn(Camera2d);
+}
+
+/// Le serveur dit quelle entité est notre joueur. Le message n'arrive qu'une fois l'entité répliquée.
+/// En host, il est livré localement (`ClientId::Server`) : même code que pour un client distant.
+fn mark_local_player(mut own_player: MessageReader<OwnPlayer>, mut commands: Commands) {
+    for OwnPlayer(player) in own_player.read() {
+        commands.entity(*player).try_insert(LocalPlayer);
+    }
 }
 
 /// Ouvre la connexion vers le serveur (mode client uniquement), une fois les defs prêtes :

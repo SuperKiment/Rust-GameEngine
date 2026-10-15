@@ -7,19 +7,31 @@ use engine_common::bevy_quinnet::server::{
     EndpointAddrConfiguration, QuinnetServer, ServerEndpointConfiguration,
     ServerEndpointConfigurationDefaultables, certificate::CertificateRetrievalMode,
 };
-use engine_common::bevy_replicon::prelude::{AuthorizedClient, ConnectedClient, RepliconChannels};
+use engine_common::bevy_replicon::prelude::{
+    AuthorizedClient, ClientId, ConnectedClient, RepliconChannels, SendTargets, ToClients,
+};
 use engine_common::bevy_replicon::shared::backend::connected_client::NetworkId;
 use engine_common::bevy_replicon_quinnet::ChannelsConfigurationExt;
-use engine_common::{EngineState, Mode, Position, Velocity, WorldConfig};
+use engine_common::{
+    EngineState, Mode, OwnPlayer, Owner, Position, SpawnDef, Velocity, WorldConfig,
+};
+
+/// Def de l'entité joueur : `assets/defs/player.def.ron` du jeu.
+const PLAYER_DEF: &str = "player";
 
 pub struct ServerPlugin;
 
 impl Plugin for ServerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(EngineState::Ready), start_listening)
-            .add_observer(log_client_connected)
-            .add_observer(log_client_disconnected)
-            .add_systems(FixedUpdate, integrate_velocity);
+        app.add_systems(
+            OnEnter(EngineState::Ready),
+            (start_listening, spawn_host_player),
+        )
+        .add_observer(log_client_connected)
+        .add_observer(log_client_disconnected)
+        .add_observer(spawn_client_player)
+        .add_observer(despawn_client_player)
+        .add_systems(FixedUpdate, integrate_velocity);
     }
 }
 
@@ -52,6 +64,54 @@ fn start_listening(
             if matches!(*mode, Mode::Server { .. }) {
                 exit.write(AppExit::error());
             }
+        }
+    }
+}
+
+/// Spawn l'entité joueur de `owner` et lui dit laquelle c'est (`OwnPlayer`).
+/// Même chemin pour un client distant et pour le joueur local du host (`ClientId::Server`).
+fn spawn_player(
+    owner: ClientId,
+    commands: &mut Commands,
+    own_player: &mut MessageWriter<ToClients<OwnPlayer>>,
+) {
+    let player = commands
+        .spawn_def(PLAYER_DEF, Vec2::ZERO)
+        .insert(Owner(owner))
+        .id();
+    own_player.write(ToClients {
+        targets: SendTargets::Single(owner),
+        message: OwnPlayer(player),
+    });
+}
+
+/// Host : joueur du serveur lui-même. Serveur dédié : pas de joueur local.
+fn spawn_host_player(
+    mode: Res<Mode>,
+    mut commands: Commands,
+    mut own_player: MessageWriter<ToClients<OwnPlayer>>,
+) {
+    if matches!(*mode, Mode::Host { .. }) {
+        spawn_player(ClientId::Server, &mut commands, &mut own_player);
+    }
+}
+
+fn spawn_client_player(
+    add: On<Add<AuthorizedClient>>,
+    mut commands: Commands,
+    mut own_player: MessageWriter<ToClients<OwnPlayer>>,
+) {
+    spawn_player(ClientId::Client(add.entity), &mut commands, &mut own_player);
+}
+
+fn despawn_client_player(
+    remove: On<Remove<ConnectedClient>>,
+    players: Query<(Entity, &Owner)>,
+    mut commands: Commands,
+) {
+    for (player, owner) in &players {
+        if owner.0 == ClientId::Client(remove.entity) {
+            commands.entity(player).despawn();
         }
     }
 }

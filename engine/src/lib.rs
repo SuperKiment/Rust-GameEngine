@@ -14,8 +14,8 @@ pub mod prelude {
     pub use super::EnginePlugin;
     pub use bevy::prelude::*;
     pub use engine_common::{
-        DefId, DefRegistry, EngineState, EntityDef, GameComponentExt, Mode, Position, Rotation,
-        SpawnDef, Velocity, Visual, WorldConfig,
+        DefId, DefRegistry, EngineState, EntityDef, GameComponentExt, GameInputExt, LocalPlayer,
+        Mode, Owner, Position, Rotation, SpawnDef, Velocity, Visual, WorldConfig,
     };
 }
 
