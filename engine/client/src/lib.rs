@@ -3,19 +3,20 @@
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use bevy::prelude::*;
-use engine_common::Mode;
 use engine_common::bevy_quinnet::client::{
     ClientConnectionConfiguration, ClientConnectionConfigurationDefaultables, QuinnetClient,
     certificate::CertificateVerificationMode, connection::ClientAddrConfiguration,
 };
 use engine_common::bevy_replicon::prelude::{ClientState, RepliconChannels};
 use engine_common::bevy_replicon_quinnet::ChannelsConfigurationExt;
+use engine_common::{EngineState, Mode};
 
 pub struct ClientPlugin;
 
 impl Plugin for ClientPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, (spawn_camera, connect))
+        app.add_systems(Startup, spawn_camera)
+            .add_systems(OnEnter(EngineState::Ready), connect)
             .add_systems(OnEnter(ClientState::Connected), || {
                 info!("connecté au serveur");
             })
@@ -40,7 +41,8 @@ fn spawn_camera(mut commands: Commands) {
     commands.spawn(Camera2d);
 }
 
-/// Ouvre la connexion vers le serveur (mode client uniquement).
+/// Ouvre la connexion vers le serveur (mode client uniquement), une fois les defs prêtes :
+/// le réseau s'ouvre quand les données sont prêtes (sinon les entités arrivent sans leurs defs).
 /// Le host n'ouvre rien : son joueur local est `ClientId::Server`.
 /// Certificat serveur non vérifié (LAN/dev, voir docs/architecture.md).
 fn connect(mode: Res<Mode>, channels: Res<RepliconChannels>, mut client: ResMut<QuinnetClient>) {

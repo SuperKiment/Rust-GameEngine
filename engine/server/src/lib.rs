@@ -10,20 +10,21 @@ use engine_common::bevy_quinnet::server::{
 use engine_common::bevy_replicon::prelude::{AuthorizedClient, ConnectedClient, RepliconChannels};
 use engine_common::bevy_replicon::shared::backend::connected_client::NetworkId;
 use engine_common::bevy_replicon_quinnet::ChannelsConfigurationExt;
-use engine_common::{Mode, Position, Velocity, WorldConfig};
+use engine_common::{EngineState, Mode, Position, Velocity, WorldConfig};
 
 pub struct ServerPlugin;
 
 impl Plugin for ServerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, start_listening)
+        app.add_systems(OnEnter(EngineState::Ready), start_listening)
             .add_observer(log_client_connected)
             .add_observer(log_client_disconnected)
             .add_systems(FixedUpdate, integrate_velocity);
     }
 }
 
-/// Ouvre l'endpoint réseau sur `0.0.0.0:<port>` (modes host et server).
+/// Ouvre l'endpoint réseau sur `0.0.0.0:<port>` (modes host et server), une fois les defs prêtes :
+/// le réseau s'ouvre quand les données sont prêtes (sinon les entités arrivent sans leurs defs).
 /// Certificat auto-signé : le client ne le vérifie pas (LAN/dev, voir docs/architecture.md).
 fn start_listening(
     mode: Res<Mode>,

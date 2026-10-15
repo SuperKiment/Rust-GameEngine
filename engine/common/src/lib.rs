@@ -12,7 +12,7 @@ pub use bevy_quinnet;
 pub use bevy_replicon;
 pub use bevy_replicon_quinnet;
 pub use defs::{DefRegistry, DefsPlugin, EngineState, EntityDef, Visual};
-pub use net::{DEFAULT_PORT, NetPlugin};
+pub use net::{DEFAULT_PORT, GameComponentExt, NetPlugin, ProtocolPlugin};
 pub use spawn::{DefId, SpawnDef};
 pub use world::{Position, Rotation, Velocity, WorldConfig};
 

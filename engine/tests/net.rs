@@ -9,13 +9,14 @@ use bevy::{prelude::*, state::app::StatesPlugin};
 use engine_client::ClientPlugin;
 use engine_common::bevy_quinnet::{client::QuinnetClient, server::QuinnetServer};
 use engine_common::bevy_replicon::prelude::*;
-use engine_common::{Mode, NetPlugin};
+use engine_common::{EngineState, Mode, NetPlugin};
 use engine_server::ServerPlugin;
 
-/// App headless avec le réseau, sans fenêtre.
+/// App headless avec le réseau, sans fenêtre ni chargement de defs (état `Ready` forcé).
 fn net_app(mode: Mode) -> App {
     let mut app = App::new();
     app.add_plugins((MinimalPlugins, StatesPlugin, NetPlugin))
+        .insert_state(EngineState::Ready)
         .insert_resource(mode);
     app
 }
@@ -51,7 +52,7 @@ fn client_connects_then_disconnects() {
     let mut server = net_app(Mode::Server { port: 0 });
     server.add_plugins(ServerPlugin);
     server.finish();
-    server.update(); // Startup : ouvre l'endpoint
+    server.update(); // OnEnter(Ready) : ouvre l'endpoint
     let port = server
         .world()
         .resource::<QuinnetServer>()

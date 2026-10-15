@@ -9,13 +9,13 @@
 | 63-64 | 3. Briques |
 | 65-69 | — World 2D |
 | 70-87 | — Data-driven (defs RON) |
-| 88-96 | — Réseau |
-| 97-99 | — UI |
-| 100-109 | 4. Décisions (validées 2026-10-15) |
+| 88-97 | — Réseau |
+| 98-100 | — UI |
+| 101-110 | 4. Décisions (validées 2026-10-15) |
 
 # Architecture du moteur
 
-Statut : **M1 : socle réel ; le reste = cible**. Mise à jour à chaque milestone pour refléter le code réel. Suivi des étapes : milestones M0-M5 sur GitHub.
+Statut : **M1 : socle réel ; M3 : réseau et réplication des defs en cours ; le reste = cible**. Mise à jour à chaque milestone pour refléter le code réel. Suivi des étapes : milestones M0-M5 sur GitHub.
 
 ## 1. Objectif
 Un moteur 2D minimal sur lequel un jeu se génère avec un minimum de tokens :
@@ -44,9 +44,9 @@ games/
 
 ### Flux
 1. Serveur et client chargent les mêmes defs (`common`).
-2. Le serveur spawn une entité depuis une def : `spawn_def("goblin", pos)`.
-3. Replicon réplique `DefId` + composants dynamiques marqués.
-4. Le client reçoit `DefId`, retrouve visuel et données statiques dans sa copie des defs, affiche.
+2. Le serveur spawn une entité depuis une def : `spawn_def("goblin", pos)` (ajoute `Replicated`). Le réseau n'est ouvert qu'à `EngineState::Ready` : les defs sont chargées avant toute réplication.
+3. Replicon réplique `DefId`, `Position`, `Rotation` + les composants de jeu enregistrés avec `register_game_component`.
+4. Le client reçoit `DefId`, retrouve les composants statiques dans sa copie des defs (observer de `DefsPlugin`, valeur répliquée prioritaire), affiche (rendu : M4).
 5. Le client envoie des inputs (messages client → serveur), le serveur les applique.
 
 ### Modes de lancement (un seul binaire par jeu)
@@ -88,9 +88,10 @@ Def d'entité = prototype `assets/defs/<id>.def.ron` ; **l'id est le nom du fich
 ### Réseau
 - `bevy_replicon` : réplication serveur-autoritaire des composants enregistrés.
 - Transport : bevy_replicon_quinnet (QUIC) (D1).
-- Réel aujourd'hui : `NetPlugin` (`engine/common/src/net.rs` = `RepliconPlugins` + `RepliconQuinnetPlugins`), ajouté une seule fois par `EnginePlugin` dans les 3 modes. `ServerPlugin` ouvre l'endpoint (host/server), `ClientPlugin` ouvre la connexion (client). Le host n'ouvre aucune connexion : son joueur local est `ClientId::Server`. Connexions et déconnexions loggées côté serveur. `engine_common` ré-exporte `bevy_replicon`, `bevy_replicon_quinnet` et `bevy_quinnet`.
+- Réel aujourd'hui : `NetPlugin` (`engine/common/src/net.rs` = `RepliconPlugins` + `RepliconQuinnetPlugins`), ajouté une seule fois par `EnginePlugin` dans les 3 modes. `ServerPlugin` ouvre l'endpoint (host/server), `ClientPlugin` ouvre la connexion (client), tous deux à `OnEnter(EngineState::Ready)`. Le host n'ouvre aucune connexion : son joueur local est `ClientId::Server`. Connexions et déconnexions loggées côté serveur. `engine_common` ré-exporte `bevy_replicon`, `bevy_replicon_quinnet` et `bevy_quinnet`.
+- Réplication : `app.register_game_component::<T>()` (trait `GameComponentExt`, dans le prelude) = `register_type` + `replicate`. `ProtocolPlugin` (inclus dans `NetPlugin`, séparable pour tester sans quinnet) enregistre `DefId`, `Position`, `Rotation`. `Velocity` n'est pas répliqué (pas de prédiction en V1). Côté client, les composants de def absents d'une entité `Remote` sont insérés depuis la copie locale des defs.
 - Sécurité : certificat serveur auto-signé, jamais vérifié par le client (`SkipVerification`). LAN/dev uniquement : pas d'authentification du serveur (attaque de l'homme du milieu possible), à revoir avant tout jeu en ligne public.
-- Test : `engine/tests/net.rs` (serveur + client réels sur localhost, port choisi par l'OS).
+- Tests : `engine/tests/net.rs` (serveur + client réels sur localhost, port choisi par l'OS) ; `engine/common/tests/replication.rs` (réplication des defs via le backend de test replicon, sans réseau).
 - Connexion : un client connecté → le serveur spawn l'entité joueur (def `player` du jeu) et la lie au client.
 - Hors V1 : prédiction client / interpolation (le jeu sera net en LAN, latence visible en distant).
 
