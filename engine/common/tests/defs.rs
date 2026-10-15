@@ -7,7 +7,9 @@ use bevy::{
     prelude::*,
     state::app::StatesPlugin,
 };
-use engine_common::{DefRegistry, DefsPlugin, EngineState, EntityDef, Visual, WorldConfig};
+use engine_common::{
+    DefId, DefRegistry, DefsPlugin, EngineState, EntityDef, Position, SpawnDef, Visual, WorldConfig,
+};
 
 #[derive(Component, Reflect, Debug, PartialEq)]
 #[reflect(Component)]
@@ -94,4 +96,26 @@ fn unknown_component_fails_and_stays_loading() {
         *app.world().resource::<State<EngineState>>().get(),
         EngineState::Loading
     );
+}
+
+#[test]
+fn spawn_def_inserts_components() {
+    let mut app = app("ok");
+    assert!(run_until(&mut app, |a| {
+        *a.world().resource::<State<EngineState>>().get() == EngineState::Ready
+    }));
+
+    let pos = Vec2::new(3.0, -4.0);
+    let mut commands = app.world_mut().commands();
+    let hero = commands.spawn_def("hero", pos).id();
+    let ghost = commands.spawn_def("nope", pos).id();
+    app.update();
+
+    let world = app.world();
+    assert_eq!(world.get::<DefId>(hero), Some(&DefId("hero".into())));
+    assert_eq!(world.get::<Position>(hero), Some(&Position(pos)));
+    assert_eq!(world.get::<TestHealth>(hero), Some(&TestHealth(30)));
+    assert!(world.get::<TestTag>(hero).is_some());
+    assert_eq!(world.get::<DefId>(ghost), Some(&DefId("nope".into())));
+    assert!(world.get::<TestHealth>(ghost).is_none());
 }

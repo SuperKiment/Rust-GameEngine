@@ -15,7 +15,7 @@ Point de départ. Lis l'index d'un doc avec `./mdx fichier.md`, puis seulement l
 | Doc | Contenu | Quand le lire | Statut |
 |---|---|---|---|
 | [docs/architecture.md](docs/architecture.md) | crates, modes host/server/client, flux, décisions D1-D4 | avant de toucher `engine/` | M1 réel, reste = cible |
-| `docs/data-format.md` | format RON des defs, `WorldConfig`, enregistrer un composant | avant d'ajouter une entité ou un composant | à créer (M2) |
+| [docs/data-format.md](docs/data-format.md) | format RON des defs, `WorldConfig`, enregistrer un composant | avant d'ajouter une entité ou un composant | M2 |
 | `docs/networking.md` | réplication, inputs, cycle de vie d'un joueur | avant de toucher au réseau ou d'ajouter un input | à créer (M3) |
 | `docs/ui.md` | créer un écran, helpers HUD | avant de créer de l'UI | à créer (M4) |
 | `docs/game-guide.md` | créer un jeu de A à Z sur le moteur | **avant de générer un jeu** | à créer (M5) |

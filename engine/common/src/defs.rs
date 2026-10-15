@@ -2,7 +2,7 @@
 //!
 //! Les composants d'une def sont résolus par nom (court ou complet) dans `AppTypeRegistry`
 //! et désérialisés par réflexion : un composant de jeu = `#[derive(Component, Reflect)]`
-//! + `#[reflect(Component)]` + `app.register_type::<T>()`.
+//! + `#[reflect(Component)]` (enregistrement auto via `reflect_auto_register`, sinon `app.register_type::<T>()`).
 
 use std::{fmt, sync::Arc};
 
@@ -82,7 +82,7 @@ fn resolve<'a>(registry: &'a TypeRegistry, name: &str) -> Result<&'a TypeRegistr
             "composant `{name}` ambigu : plusieurs types portent ce nom, utilise le nom complet"
         )),
         None => Err(format!(
-            "composant `{name}` inconnu : type non enregistré (`app.register_type`)"
+            "composant `{name}` inconnu : type non enregistré (`#[derive(Reflect)]` manquant, ou `app.register_type` sans `reflect_auto_register`)"
         )),
         Some(r) if r.data::<ReflectComponent>().is_none() => Err(format!(
             "`{name}` n'est pas un composant : ajoute `#[reflect(Component)]`"
