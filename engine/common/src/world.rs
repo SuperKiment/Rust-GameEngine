@@ -18,8 +18,8 @@ pub struct Rotation(pub f32);
 #[reflect(Component)]
 pub struct Velocity(pub Vec2);
 
-/// Bornes du monde et taille de tuile.
-#[derive(Resource, Reflect, Serialize, Deserialize, Clone, Debug)]
+/// Bornes du monde et taille de tuile. Chargé depuis `assets/world.ron` (asset + resource).
+#[derive(Asset, Resource, Reflect, Serialize, Deserialize, Clone, Debug)]
 pub struct WorldConfig {
     pub bounds: Rect,
     pub tile_size: f32,

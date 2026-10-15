@@ -1,8 +1,11 @@
 //! Façade : un jeu ne dépend que de `engine`.
 
-use bevy::{app::ScheduleRunnerPlugin, log::LogPlugin, prelude::*, window::WindowPlugin};
+use bevy::{
+    app::ScheduleRunnerPlugin, asset::AssetPlugin, log::LogPlugin, prelude::*,
+    state::app::StatesPlugin, window::WindowPlugin,
+};
 use engine_client::ClientPlugin;
-use engine_common::Mode;
+use engine_common::{DefsPlugin, Mode};
 use engine_server::ServerPlugin;
 
 pub use bevy;
@@ -10,7 +13,10 @@ pub use bevy;
 pub mod prelude {
     pub use super::EnginePlugin;
     pub use bevy::prelude::*;
-    pub use engine_common::{Mode, Position, Rotation, Velocity, WorldConfig};
+    pub use engine_common::{
+        DefRegistry, EngineState, EntityDef, Mode, Position, Rotation, Velocity, Visual,
+        WorldConfig,
+    };
 }
 
 pub struct EnginePlugin {
@@ -53,6 +59,8 @@ impl Plugin for EnginePlugin {
                         Time::<Fixed>::default().timestep(),
                     )),
                     LogPlugin::default(),
+                    AssetPlugin::default(),
+                    StatesPlugin,
                     ServerPlugin,
                 ));
             }
@@ -63,6 +71,7 @@ impl Plugin for EnginePlugin {
                 app.add_plugins((self.window_plugins(), ServerPlugin, ClientPlugin));
             }
         }
+        app.add_plugins(DefsPlugin);
     }
 }
 
