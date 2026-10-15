@@ -3,19 +3,19 @@
 |---|---|
 | 16-19 | Architecture du moteur |
 | 20-27 | 1. Objectif |
-| 28-40 | 2. Architecture cible |
-| 41-47 | — Flux |
-| 48-52 | — Modes de lancement (un seul binaire par jeu) |
-| 53-54 | 3. Briques |
-| 55-59 | — World 2D |
-| 60-76 | — Data-driven (defs RON) |
-| 77-82 | — Réseau |
-| 83-85 | — UI |
-| 86-95 | 4. Décisions (validées 2026-10-15) |
+| 28-44 | 2. Architecture cible |
+| 45-51 | — Flux |
+| 52-62 | — Modes de lancement (un seul binaire par jeu) |
+| 63-64 | 3. Briques |
+| 65-69 | — World 2D |
+| 70-86 | — Data-driven (defs RON) |
+| 87-92 | — Réseau |
+| 93-95 | — UI |
+| 96-105 | 4. Décisions (validées 2026-10-15) |
 
 # Architecture du moteur
 
-Statut : **cible V1** (rien n'est encore codé). Mise à jour à chaque milestone pour refléter le code réel. Suivi des étapes : milestones M0-M5 sur GitHub.
+Statut : **M1 : socle réel ; le reste = cible**. Mise à jour à chaque milestone pour refléter le code réel. Suivi des étapes : milestones M0-M5 sur GitHub.
 
 ## 1. Objectif
 Un moteur 2D minimal sur lequel un jeu se génère avec un minimum de tokens :
@@ -30,13 +30,17 @@ Critère de réussite V1 : le jeu exemple tient en peu de code (cible < 300 lign
 ```
 Cargo.toml            workspace, versions pinées dans [workspace.dependencies]
 engine/
-  common/             engine_common : world 2D, defs data, registre de composants, protocole (inputs)
-  server/             engine_server : transport serveur, spawn depuis les defs, simulation autoritaire, headless
-  client/             engine_client : transport client, rendu des entités, caméra, inputs, UI
-  (engine/)           engine : crate façade, GamePlugin + modes host / server / client
+  common/             engine_common (bevy: std) : Mode, puis world 2D, defs data, protocole
+  server/             engine_server (bevy: default_app, std, multi_threaded) : ServerPlugin, headless, ne tire PAS bevy_render
+  client/             engine_client (bevy: 2d) : ClientPlugin (caméra 2D), puis rendu, inputs, UI
+  src/                engine : façade, EnginePlugin + prelude (bevy: 2d)
 games/
-  sample/             jeu exemple : assets/*.ron + src/ (gameplay uniquement)
+  sample/             jeu exemple (bin) : dépend uniquement de `engine` ; assets/*.ron + src/ (gameplay)
 ```
+
+- `EnginePlugin { title, mode }` : `from_args(title)` parse `std::env::args().skip(1)` (erreur : usage sur stderr, exit 2). `build` insère la resource `Mode` puis ajoute les plugins du mode (ci-dessous).
+- `engine::prelude` = `bevy::prelude::*` + `EnginePlugin` + `Mode` ; `engine::bevy` ré-exporté. Un jeu ne dépend que de `engine`.
+- `main.rs` d'un jeu : `App::new().add_plugins(EnginePlugin::from_args("Sample")).run();`
 
 ### Flux
 1. Serveur et client chargent les mêmes defs (`common`).
@@ -46,9 +50,15 @@ games/
 5. Le client envoie des inputs (messages client → serveur), le serveur les applique.
 
 ### Modes de lancement (un seul binaire par jeu)
-- `host` (défaut) : serveur + client dans le même process. Solo = host sans autre joueur.
-- `server` : headless, sans fenêtre.
-- `client <addr>` : rejoint un serveur.
+| Commande | Plugins |
+|---|---|
+| `cargo run -p sample -- host` (défaut) | `DefaultPlugins` (fenêtre) + `ServerPlugin` + `ClientPlugin`. Solo = host sans autre joueur. |
+| `cargo run -p sample -- server` | `MinimalPlugins` (boucle 60 Hz) + `LogPlugin` + `ServerPlugin`, sans fenêtre. |
+| `cargo run -p sample -- client <addr>` | `DefaultPlugins` + `ClientPlugin`. `<addr>` obligatoire. |
+
+Le réseau (rejoindre `<addr>`) arrive en M3.
+
+Limite connue : un seul binaire par jeu, donc le mode `server` d'un jeu lie quand même `bevy_render` (seul `engine_server` en est exempt). Serveur sans rendu = features cargo sur `engine` ou binaire serveur séparé : question à enjeu, non traitée en V1.
 
 ## 3. Briques
 

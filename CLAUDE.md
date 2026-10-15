@@ -82,14 +82,15 @@ Doc de recherche de données et d'architecture (en général en préparation d'u
 Toute nouvelle doc est référencée dans [INDEX.md](INDEX.md).
 
 # Build, test, lint
-Depuis la racine (workspace cargo, créé à l'étape M1 du plan) :
+Depuis la racine :
 ```sh
 cargo build --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all --check
 cargo test --workspace
 ```
-- Linux : Bevy demande `libasound2-dev libudev-dev` (+ `libwayland-dev libxkbcommon-dev` sous Wayland).
+- Lancer un jeu : `cargo run -p sample -- host | server | client <addr>`.
+- Linux : Bevy demande `libudev-dev libwayland-dev libxkbcommon-dev` (pas d'audio, donc pas d'alsa). Rust ≥ 1.97.1 (exigé par Bevy 0.20).
 - Premier build Bevy long (plusieurs minutes) : lance-le en arrière-plan, ne conclus pas à un blocage.
 - Tests = headless (serveur sans fenêtre). Ce qui demande une fenêtre se teste à la main (voir Orchestrateur).
 

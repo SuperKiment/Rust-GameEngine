@@ -1,0 +1,8 @@
+[package]
+name = "engine_server"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+engine_common = { path = "../common" }
+bevy = { workspace = true, features = ["default_app", "std", "multi_threaded"] }

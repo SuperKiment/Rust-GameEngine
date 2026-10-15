@@ -14,7 +14,7 @@ Point de départ. Lis l'index d'un doc avec `./mdx fichier.md`, puis seulement l
 ## Moteur (`docs/`)
 | Doc | Contenu | Quand le lire | Statut |
 |---|---|---|---|
-| [docs/architecture.md](docs/architecture.md) | crates, modes host/server/client, flux, décisions D1-D4 | avant de toucher `engine/` | cible V1, réel à partir de M1 |
+| [docs/architecture.md](docs/architecture.md) | crates, modes host/server/client, flux, décisions D1-D4 | avant de toucher `engine/` | M1 réel, reste = cible |
 | `docs/data-format.md` | format RON des defs, `WorldConfig`, enregistrer un composant | avant d'ajouter une entité ou un composant | à créer (M2) |
 | `docs/networking.md` | réplication, inputs, cycle de vie d'un joueur | avant de toucher au réseau ou d'ajouter un input | à créer (M3) |
 | `docs/ui.md` | créer un écran, helpers HUD | avant de créer de l'UI | à créer (M4) |
@@ -23,7 +23,7 @@ Point de départ. Lis l'index d'un doc avec `./mdx fichier.md`, puis seulement l
 ## Jeux (`games/`)
 | Jeu | Contenu | Statut |
 |---|---|---|
-| `games/sample` | jeu de référence : déplacement, ramassage, score multi | à créer (M5) |
+| `games/sample` | jeu de référence : déplacement, ramassage, score multi | squelette (M1), jeu en M5 |
 
 ## Outillage
 | Fichier | Rôle |

@@ -1,0 +1,10 @@
+[package]
+name = "engine"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+engine_common = { path = "common" }
+engine_server = { path = "server" }
+engine_client = { path = "client" }
+bevy = { workspace = true, features = ["2d"] }

@@ -1,0 +1,7 @@
+[package]
+name = "engine_common"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+bevy = { workspace = true, features = ["std"] }
