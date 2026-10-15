@@ -1,0 +1,14 @@
+# nom	couleur	description (gh label create --force : crée ou met à jour)
+bug	d73a4a	Comportement incorrect
+enhancement	a2eeef	Nouvelle fonctionnalité
+documentation	0075ca	Doc uniquement
+chore	cfd3d7	Outillage, CI, dépendances
+enjeu	b60205	Question à enjeu à trancher (voir CLAUDE.md > Décisions)
+blocked	000000	Bloqué par une autre issue ou une décision
+area:world	1d76db	Monde 2D, coordonnées
+area:data	5319e7	Defs RON, chargement, registre
+area:net	fbca04	Réplication, transport, inputs
+area:render	0e8a16	Rendu 2D, caméra
+area:ui	c5def5	UI, HUD, écrans
+area:game	f9d0c4	Jeu exemple, guide de génération
+area:tooling	bfdadc	Repo, CI, workflows, docs de travail

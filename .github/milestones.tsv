@@ -1,0 +1,7 @@
+# titre	description (créé si absent, jamais modifié)
+M0 Outillage repo	CLAUDE.md, INDEX.md, index md, labels, milestones, review Claude
+M1 Socle workspace	Workspace cargo, crates engine, modes host/server/client, CI
+M2 World + data	World 2D, defs RON par réflexion, DefRegistry, spawn_def
+M3 Réseau	replicon + quinnet, register_game_component, inputs, joueur par client
+M4 Rendu + UI	Rendu depuis les defs, caméra, bevy_egui, écran de connexion, HUD
+M5 Jeu exemple + guide	games/sample, docs/game-guide.md
