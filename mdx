@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# ./mdx fichier.md       -> affiche l'index
+# ./mdx fichier.md A B   -> affiche les lignes A à B
+f="$1"
+if [ $# -ge 3 ]; then sed -n "$2,$3p" "$f"; exit; fi
+n=$(head -1 "$f")
+[[ "$n" =~ ^[0-9]+$ ]] || { echo "Pas d'index"; exit 1; }
+head -n "$n" "$f"
