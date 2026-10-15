@@ -68,18 +68,26 @@ impl Mode {
         }
     }
 
-    /// `ip`, `ip:port`, `[ipv6]:port`, `localhost` ou `localhost:port`. Port par défaut : `DEFAULT_PORT`.
+    /// `ip`, `ip:port`, `localhost` ou `localhost:port`. Port par défaut : `DEFAULT_PORT`.
     fn parse_addr(arg: &str) -> Result<SocketAddr, String> {
         let arg = match arg.strip_prefix("localhost") {
             Some(rest) => format!("127.0.0.1{rest}"),
             None => arg.to_string(),
         };
-        arg.parse::<SocketAddr>()
+        let addr = arg
+            .parse::<SocketAddr>()
             .or_else(|_| {
                 arg.parse::<IpAddr>()
                     .map(|ip| SocketAddr::new(ip, DEFAULT_PORT))
             })
-            .map_err(|_| format!("adresse invalide : {arg}\n{}", Self::USAGE))
+            .map_err(|_| format!("adresse invalide : {arg}\n{}", Self::USAGE))?;
+        if addr.is_ipv6() {
+            return Err(format!(
+                "IPv6 non supporté : le serveur écoute en IPv4\n{}",
+                Self::USAGE
+            ));
+        }
+        Ok(addr)
     }
 }
 
@@ -125,8 +133,6 @@ mod tests {
             parse(&["client", "localhost:6000"]),
             Ok(client("127.0.0.1:6000"))
         );
-        assert_eq!(parse(&["client", "[::1]:6000"]), Ok(client("[::1]:6000")));
-        assert_eq!(parse(&["client", "::1"]), Ok(client("[::1]:5000")));
     }
 
     #[test]
@@ -134,6 +140,8 @@ mod tests {
         assert!(parse(&["client"]).is_err());
         assert!(parse(&["client", "pas-une-adresse"]).is_err());
         assert!(parse(&["client", "127.0.0.1:99999"]).is_err());
+        assert!(parse(&["client", "[::1]:6000"]).is_err());
+        assert!(parse(&["client", "::1"]).is_err());
         assert!(parse(&["nope"]).is_err());
         assert!(parse(&["server", "x"]).is_err());
         assert!(parse(&["server", "70000"]).is_err());

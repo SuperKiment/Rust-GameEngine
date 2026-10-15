@@ -2,12 +2,12 @@
 | Lignes | Section |
 |---|---|
 | 12-15 | Réseau : réplication, joueur par client, inputs |
-| 16-28 | Modes et connexion |
-| 29-34 | Réplication |
-| 35-51 | Un joueur par client |
-| 52-97 | Inputs |
-| 98-105 | — Limites |
-| 106-110 | Tests |
+| 16-29 | Modes et connexion |
+| 30-35 | Réplication |
+| 36-52 | Un joueur par client |
+| 53-98 | Inputs |
+| 99-106 | — Limites |
+| 107-111 | Tests |
 
 # Réseau : réplication, joueur par client, inputs
 
@@ -22,6 +22,7 @@ Le serveur est autoritaire : l'état de jeu ne change que chez lui. Le client en
 | `server` | serveur headless | aucun |
 | `client <ip[:port]>` | connexion au serveur | celui que le serveur lui assigne |
 
+- IPv4 uniquement (V1) : le serveur écoute sur `0.0.0.0`, un client refuse une adresse IPv6.
 - L'endpoint (serveur) et la connexion (client) s'ouvrent à `OnEnter(EngineState::Ready)`, une fois les defs chargées : sinon des entités arriveraient sans leurs defs.
 - Le host n'ouvre aucune connexion : replicon livre localement ses messages (`ClientId::Server`). Le code de jeu est identique en solo, host et client : aucune branche "si solo".
 - Les plugins, composants et messages sont enregistrés dans le même ordre sur le serveur et le client (replicon vérifie un hash du protocole à la connexion). Tout plugin de jeu est ajouté dans les 3 modes.

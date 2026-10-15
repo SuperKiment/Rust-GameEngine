@@ -54,7 +54,7 @@ games/
 |---|---|
 | `cargo run -p sample -- host [port]` (défaut) | `DefaultPlugins` (fenêtre) + `NetPlugin` + `ServerPlugin` + `ClientPlugin`. Écoute sur `0.0.0.0:<port>`. Solo = host sans autre joueur. |
 | `cargo run -p sample -- server [port]` | `MinimalPlugins` (boucle 64 Hz = pas de `FixedUpdate`) + `LogPlugin` + `NetPlugin` + `ServerPlugin`, sans fenêtre. Écoute sur `0.0.0.0:<port>`. |
-| `cargo run -p sample -- client <ip[:port]>` | `DefaultPlugins` + `NetPlugin` + `ClientPlugin`. `<ip>` obligatoire (`localhost` accepté, IPv6 : `[::1]:6000`). |
+| `cargo run -p sample -- client <ip[:port]>` | `DefaultPlugins` + `NetPlugin` + `ClientPlugin`. `<ip>` obligatoire (`localhost` accepté, IPv4 uniquement). |
 
 Port par défaut : `DEFAULT_PORT` = 5000 (`engine/common/src/net.rs`), pris quand `[port]` ou `:port` est absent. Port occupé : le `server` quitte avec une erreur, le `host` log l'erreur et reste jouable en solo (sans accueillir de client).
 

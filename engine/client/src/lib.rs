@@ -1,6 +1,6 @@
 //! Rendu 2D, inputs et UI.
 
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::net::Ipv4Addr;
 
 use bevy::prelude::*;
 use engine_common::bevy_quinnet::client::{
@@ -58,14 +58,14 @@ fn connect(mode: Res<Mode>, channels: Res<RepliconChannels>, mut client: ResMut<
     let Mode::Client { addr } = *mode else {
         return;
     };
-    // L'IP locale doit être de la même famille (v4/v6) que celle du serveur.
-    let local_ip: IpAddr = match addr {
-        std::net::SocketAddr::V4(_) => Ipv4Addr::UNSPECIFIED.into(),
-        std::net::SocketAddr::V6(_) => Ipv6Addr::UNSPECIFIED.into(),
-    };
     info!("connexion à {addr}");
     let config = ClientConnectionConfiguration {
-        addr_config: ClientAddrConfiguration::from_ips(addr.ip(), addr.port(), local_ip, 0),
+        addr_config: ClientAddrConfiguration::from_ips(
+            addr.ip(),
+            addr.port(),
+            Ipv4Addr::UNSPECIFIED,
+            0,
+        ),
         cert_mode: CertificateVerificationMode::SkipVerification,
         defaultables: ClientConnectionConfigurationDefaultables {
             send_channels_cfg: channels.client_configs(),

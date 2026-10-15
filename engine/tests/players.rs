@@ -7,7 +7,7 @@ use bevy::prelude::*;
 use common::{client_state, game_app, is_ready, run_until};
 use engine_client::ClientPlugin;
 use engine_common::bevy_quinnet::{client::QuinnetClient, server::QuinnetServer};
-use engine_common::bevy_replicon::prelude::{ClientId, ClientState};
+use engine_common::bevy_replicon::prelude::{ClientId, ClientState, ServerState};
 use engine_common::{DefId, GameInputExt, LocalPlayer, Mode, Owner, Position};
 use engine_server::ServerPlugin;
 use serde::{Deserialize, Serialize};
@@ -123,7 +123,11 @@ fn each_client_moves_its_own_player() {
 
 #[test]
 fn host_has_local_player_and_receives_its_input() {
-    let mut host = server_app(Mode::Host { port: 0 });
+    // Port déjà pris : l'endpoint ne démarre pas (log d'erreur). La livraison locale ne dépend
+    // que de `ClientState::Disconnected` (bevy_replicon src/server/message.rs:184-188).
+    let taken = std::net::UdpSocket::bind("0.0.0.0:0").unwrap();
+    let port = taken.local_addr().unwrap().port();
+    let mut host = server_app(Mode::Host { port });
     host.add_plugins(ClientPlugin);
     host.finish();
 
@@ -140,4 +144,10 @@ fn host_has_local_player_and_receives_its_input() {
     run_until(&mut [&mut host], "input du host", |a| {
         local_position(a[0]) == Some(movement)
     });
+    // Le port pris a bien empêché le serveur de démarrer.
+    assert_ne!(
+        *host.world().resource::<State<ServerState>>().get(),
+        ServerState::Running
+    );
+    drop(taken);
 }
