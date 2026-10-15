@@ -6,10 +6,10 @@
 | 27-35 | `world.ron` |
 | 36-56 | Def d'entité |
 | 57-66 | Ajouter un composant de jeu |
-| 67-81 | Cycle de vie : `EngineState` |
-| 82-89 | Erreurs de chargement |
-| 90-92 | Hot-reload |
-| 93-98 | Lancer hors cargo |
+| 67-82 | Cycle de vie : `EngineState` |
+| 83-90 | Erreurs de chargement |
+| 91-93 | Hot-reload |
+| 94-99 | Lancer hors cargo |
 
 # Format des données d'un jeu
 
@@ -31,7 +31,7 @@ Exemple : `defs/goblin.def.ron` -> id `"goblin"`. Les sous-dossiers de `defs/` s
   tile_size: 32.0,
 )
 ```
-Charge la resource `WorldConfig` (`world_to_tile`, `tile_to_world`, `clamp`).
+Charge la resource `WorldConfig` (`world_to_tile`, `tile_to_world`, `clamp`). `min > max` sur un axe : erreur de chargement.
 
 ## Def d'entité
 ```ron
@@ -77,6 +77,7 @@ app.add_systems(OnEnter(EngineState::Ready), spawn_world);
 ```
 - `spawn_def(id, pos)` crée `(DefId(id), Position(pos))` + une copie des composants de la def, et renvoie les `EntityCommands` (ajoute d'autres composants avec `.insert(..)`).
 - Id inconnu ou def non chargée : `error!` avec l'id, l'entité reste avec `DefId` + `Position`.
+- Un `"Position"` dans la def est écrasé par `pos`.
 - Serveur uniquement (serveur autoritaire) ; le client reçoit `DefId` + l'état dynamique.
 
 ## Erreurs de chargement

@@ -222,7 +222,12 @@ impl AssetLoader for WorldConfigLoader {
     ) -> Result<WorldConfig, BevyError> {
         let mut bytes = Vec::new();
         reader.read_to_end(&mut bytes).await?;
-        Ok(ron_options().from_bytes(&bytes)?)
+        let config: WorldConfig = ron_options().from_bytes(&bytes)?;
+        let (min, max) = (config.bounds.min, config.bounds.max);
+        if min.cmpgt(max).any() {
+            return Err(format!("bounds invalides : min {min} > max {max}").into());
+        }
+        Ok(config)
     }
 
     fn extensions(&self) -> &[&str] {

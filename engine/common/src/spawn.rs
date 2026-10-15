@@ -40,6 +40,8 @@ impl SpawnDef for Commands<'_, '_> {
                         None => error!("spawn_def `{id}` : composant non enregistré"),
                     }
                 }
+                // La position passée à spawn_def prime sur un éventuel "Position" de la def.
+                entity.insert(Position(pos));
             });
         });
         entity
