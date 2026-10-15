@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["engine", "engine/common", "engine/server", "engine/client"]
+members = ["engine", "engine/common", "engine/server", "engine/client", "games/*"]
 
 [workspace.package]
 edition = "2024"
