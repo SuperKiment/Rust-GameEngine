@@ -4,4 +4,5 @@ edition.workspace = true
 version.workspace = true
 
 [dependencies]
-bevy = { workspace = true, features = ["std"] }
+bevy = { workspace = true, features = ["std", "serialize"] }
+serde.workspace = true

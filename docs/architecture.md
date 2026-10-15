@@ -53,7 +53,7 @@ games/
 | Commande | Plugins |
 |---|---|
 | `cargo run -p sample -- host` (défaut) | `DefaultPlugins` (fenêtre) + `ServerPlugin` + `ClientPlugin`. Solo = host sans autre joueur. |
-| `cargo run -p sample -- server` | `MinimalPlugins` (boucle 60 Hz) + `LogPlugin` + `ServerPlugin`, sans fenêtre. |
+| `cargo run -p sample -- server` | `MinimalPlugins` (boucle 64 Hz = pas de `FixedUpdate`) + `LogPlugin` + `ServerPlugin`, sans fenêtre. |
 | `cargo run -p sample -- client <addr>` | `DefaultPlugins` + `ClientPlugin`. `<addr>` obligatoire. |
 
 Le réseau (rejoindre `<addr>`) arrive en M3.

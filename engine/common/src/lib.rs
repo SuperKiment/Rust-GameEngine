@@ -2,6 +2,9 @@
 
 use bevy::prelude::*;
 
+pub mod world;
+pub use world::{Position, Rotation, Velocity, WorldConfig};
+
 /// Mode de lancement du binaire d'un jeu.
 #[derive(Resource, Clone, Debug, PartialEq)]
 pub enum Mode {
