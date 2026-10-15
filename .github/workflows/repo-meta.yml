@@ -1,0 +1,31 @@
+name: Repo meta
+# Synchronise labels et milestones depuis .github/*.tsv (pas d'outil MCP pour les créer).
+on:
+  push:
+    paths: [.github/labels.tsv, .github/milestones.tsv, .github/workflows/repo-meta.yml]
+  workflow_dispatch:
+permissions:
+  issues: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Secrets Claude présents
+        run: |
+          echo "CLAUDE_CODE_OAUTH_TOKEN=${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}"
+          echo "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY != '' }}"
+      - name: Labels
+        run: |
+          grep -v '^#' .github/labels.tsv | while IFS=$'\t' read -r name color desc; do
+            gh label create "$name" --color "$color" --description "$desc" --force
+          done
+      - name: Milestones
+        run: |
+          existing=$(gh api "repos/$GH_REPO/milestones?state=all&per_page=100" --jq '.[].title')
+          grep -v '^#' .github/milestones.tsv | while IFS=$'\t' read -r title desc; do
+            grep -qxF "$title" <<< "$existing" || gh api "repos/$GH_REPO/milestones" -f title="$title" -f description="$desc" --jq '"\(.number) \(.title)"'
+          done
