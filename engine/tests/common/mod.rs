@@ -24,7 +24,11 @@ pub fn game_app(mode: Mode) -> App {
         NetPlugin,
         DefsPlugin,
     ))
-    .insert_resource(mode);
+    .insert_resource(mode)
+    // Assets que le rendu du client remplit : pas de GPU ici, mais les stores doivent exister.
+    .init_asset::<Mesh>()
+    .init_asset::<ColorMaterial>()
+    .init_asset::<Image>();
     app
 }
 

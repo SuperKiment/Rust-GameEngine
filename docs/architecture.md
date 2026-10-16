@@ -4,18 +4,18 @@
 | 16-19 | Architecture du moteur |
 | 20-27 | 1. Objectif |
 | 28-44 | 2. Architecture cible |
-| 45-51 | — Flux |
-| 52-62 | — Modes de lancement (un seul binaire par jeu) |
-| 63-64 | 3. Briques |
-| 65-69 | — World 2D |
-| 70-87 | — Data-driven (defs RON) |
-| 88-98 | — Réseau |
-| 99-101 | — UI |
-| 102-111 | 4. Décisions (validées 2026-10-15) |
+| 45-52 | — Flux |
+| 53-63 | — Modes de lancement (un seul binaire par jeu) |
+| 64-65 | 3. Briques |
+| 66-71 | — World 2D |
+| 72-89 | — Data-driven (defs RON) |
+| 90-100 | — Réseau |
+| 101-103 | — UI |
+| 104-113 | 4. Décisions (validées 2026-10-15) |
 
 # Architecture du moteur
 
-Statut : **M1 : socle réel ; M3 : réseau et réplication des defs en cours ; le reste = cible**. Mise à jour à chaque milestone pour refléter le code réel. Suivi des étapes : milestones M0-M5 sur GitHub.
+Statut : **M1 : socle réel ; M3 : réseau et réplication des defs en cours ; M4 : rendu 2D des defs + caméra faits (inputs/UI = cible) ; le reste = cible**. Mise à jour à chaque milestone pour refléter le code réel. Suivi des étapes : milestones M0-M5 sur GitHub.
 
 ## 1. Objectif
 Un moteur 2D minimal sur lequel un jeu se génère avec un minimum de tokens :
@@ -46,7 +46,8 @@ games/
 1. Serveur et client chargent les mêmes defs (`common`).
 2. Le serveur spawn une entité depuis une def : `spawn_def("goblin", pos)` (ajoute `Replicated`). Le réseau n'est ouvert qu'à `EngineState::Ready` : les defs sont chargées avant toute réplication.
 3. Replicon réplique `DefId`, `Position`, `Rotation` + les composants de jeu enregistrés avec `register_game_component`.
-4. Le client reçoit `DefId`, retrouve les composants statiques dans sa copie des defs (observer de `DefsPlugin`, valeur répliquée prioritaire), affiche (rendu : M4).
+4. Le client reçoit `DefId`, retrouve les composants statiques dans sa copie des defs (observer de `DefsPlugin`, valeur répliquée prioritaire), puis affiche : un observer d'`engine_client` (`DefRenderPlugin`) ajoute le visuel de la def (`Mesh2d` + `ColorMaterial`, ou `Sprite`) et un `Transform` avec `z = layer`. Même code pour une entité répliquée (client) et locale (host).
+   Chaque frame, avant la propagation des transforms (`PostUpdate`, avant `TransformSystems::Propagate`), `Position`/`Rotation` sont copiés dans `Transform` (xy / rotation z) et la caméra 2D suit le `LocalPlayer`. Pas de prédiction ni d'interpolation.
 5. Le client envoie des inputs (messages client → serveur), le serveur les applique.
 
 ### Modes de lancement (un seul binaire par jeu)
@@ -63,9 +64,10 @@ Limite connue : un seul binaire par jeu, donc le mode `server` d'un jeu lie quan
 ## 3. Briques
 
 ### World 2D
-- Composants répliqués `Position(Vec2)`, `Rotation(f32)`, `Velocity(Vec2)` dans `common` ; le client synchronise `Position` → `Transform` (le `Transform` Bevy n'est pas répliqué : trop lourd).
+- Composants répliqués `Position(Vec2)`, `Rotation(f32)`, `Velocity(Vec2)` dans `common` ; le client synchronise `Position`/`Rotation` → `Transform` des entités qui ont un visuel (le `Transform` Bevy n'est pas répliqué : trop lourd). Les entités sans visuel n'ont pas de `Transform`.
 - `WorldConfig` en RON : bornes du monde, taille de tuile (helpers grille ↔ monde).
-- Profondeur d'affichage : `layer` dans la def → `z` du `Transform`.
+- Profondeur d'affichage : `layer` dans la def → `z` du `Transform` (posé à l'ajout du visuel, la sync ne touche que xy). Le rendu vit uniquement dans `engine_client` (le serveur dédié ne tire pas `bevy_render`).
+- Caméra : `Camera2d` spawnée au démarrage, copie le xy de la `Position` du `LocalPlayer` chaque frame, sans lissage.
 
 ### Data-driven (defs RON)
 Def d'entité = prototype `assets/defs/<id>.def.ron` ; **l'id est le nom du fichier** (pas de champ `id`). Les composants sont résolus par **réflexion Bevy** (nom court ou complet) :

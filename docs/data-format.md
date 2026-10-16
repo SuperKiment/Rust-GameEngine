@@ -4,12 +4,12 @@
 | 14-17 | Format des données d'un jeu |
 | 18-26 | Arborescence |
 | 27-35 | `world.ron` |
-| 36-56 | Def d'entité |
-| 57-68 | Ajouter un composant de jeu |
-| 69-86 | Cycle de vie : `EngineState` |
-| 87-94 | Erreurs de chargement |
-| 95-97 | Hot-reload |
-| 98-103 | Lancer hors cargo |
+| 36-58 | Def d'entité |
+| 59-70 | Ajouter un composant de jeu |
+| 71-88 | Cycle de vie : `EngineState` |
+| 89-97 | Erreurs de chargement |
+| 98-100 | Hot-reload |
+| 101-106 | Lancer hors cargo |
 
 # Format des données d'un jeu
 
@@ -50,7 +50,9 @@ Charge la resource `WorldConfig` (`world_to_tile`, `tile_to_world`, `clamp`). `m
   - `Circle(radius: f32, color: "#rrggbb")`
   - `Rect(size: (w, h), color: "#rrggbb")`
   - `Sprite("chemin/relatif/assets.png")`
-- `layer` : profondeur d'affichage (z).
+  - Rendu côté client (`engine_client`) : `Circle`/`Rect` = mesh 2D + `ColorMaterial`, `Sprite` = image chargée par l'asset server (chemin relatif à `assets/`). Aucun code de rendu côté jeu.
+  - `color` est validée au chargement de la def (syntaxe `Srgba::hex` de Bevy : `#rgb`, `#rrggbb`, `#rrggbbaa`) : une couleur invalide empêche le chargement.
+- `layer` : profondeur d'affichage, devient le `z` du `Transform` de l'entité (plus grand = devant).
 - `components` : map `"NomComposant": valeur`. Nom court (`"Health"`) ou complet (`"mon_jeu::Health"`, obligatoire si deux types ont le même nom court). Valeur = RON du type : struct tuple `(30)`, struct `(hp: 30, max: 40)`, unité `()`.
 - `Position` est posée par `spawn_def`, ne la mets pas dans la def.
 
@@ -90,6 +92,7 @@ Le moteur reste en `Loading` et logue (`error!`) le fichier fautif et la cause, 
 - `composant `Health` : ...` (valeur RON invalide pour ce type)
 - `` `X` n'est pas un composant : ajoute `#[reflect(Component)]` ``
 - `composant `X` ambigu ... utilise le nom complet`
+- `visual : couleur `rouge` invalide (...), attendu "#rrggbb"`
 - `chargement échoué, reste en Loading : defs/ : ...` / `world.ron : ...`
 
 ## Hot-reload

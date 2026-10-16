@@ -1,5 +1,7 @@
 //! Rendu 2D, inputs et UI.
 
+mod render;
+
 use std::net::Ipv4Addr;
 
 use bevy::prelude::*;
@@ -15,7 +17,8 @@ pub struct ClientPlugin;
 
 impl Plugin for ClientPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_camera)
+        app.add_plugins(render::DefRenderPlugin)
+            .add_systems(Startup, spawn_camera)
             .add_systems(Update, mark_local_player)
             .add_systems(OnEnter(EngineState::Ready), connect)
             .add_systems(OnEnter(ClientState::Connected), || {

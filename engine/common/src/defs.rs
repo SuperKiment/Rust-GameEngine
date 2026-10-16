@@ -23,12 +23,27 @@ use serde::{
     de::{DeserializeSeed, Error as _, MapAccess, Visitor},
 };
 
-/// Rendu d'une def (le rendu arrive en M4).
+/// Rendu d'une def, affiché par le client. Les couleurs sont validées au chargement de la def.
 #[derive(Deserialize, Clone, Debug, PartialEq)]
 pub enum Visual {
     Circle { radius: f32, color: String },
     Rect { size: Vec2, color: String },
     Sprite(String),
+}
+
+impl Visual {
+    /// Texte de la couleur (`None` pour un sprite).
+    fn color_str(&self) -> Option<&str> {
+        match self {
+            Visual::Circle { color, .. } | Visual::Rect { color, .. } => Some(color),
+            Visual::Sprite(_) => None,
+        }
+    }
+
+    /// Couleur de la forme (`None` pour un sprite). Le loader garantit qu'elle se parse.
+    pub fn color(&self) -> Option<Srgba> {
+        Srgba::hex(self.color_str()?).ok()
+    }
 }
 
 /// Prototype d'entité chargé depuis `<id>.def.ron`. L'id est le nom du fichier.
@@ -55,6 +70,15 @@ pub struct DefRegistry(HashMap<String, Handle<EntityDef>>);
 impl DefRegistry {
     pub fn get(&self, id: &str) -> Option<&Handle<EntityDef>> {
         self.0.get(id)
+    }
+
+    /// Def `id` si elle est enregistrée et chargée.
+    pub fn def<'a>(&self, id: &str, defs: &'a Assets<EntityDef>) -> Option<&'a EntityDef> {
+        defs.get(self.0.get(id)?)
+    }
+
+    pub fn insert(&mut self, id: impl Into<String>, handle: Handle<EntityDef>) {
+        self.0.insert(id.into(), handle);
     }
 
     pub fn len(&self) -> usize {
@@ -154,7 +178,17 @@ impl<'de> Visitor<'de> for DefSeed<'_> {
         };
         while let Some(field) = map.next_key::<String>()? {
             match field.as_str() {
-                "visual" => def.visual = map.next_value()?,
+                "visual" => {
+                    def.visual = map.next_value()?;
+                    let color = def.visual.as_ref().and_then(Visual::color_str);
+                    if let Some(color) = color
+                        && let Err(e) = Srgba::hex(color)
+                    {
+                        return Err(A::Error::custom(format!(
+                            "visual : couleur `{color}` invalide ({e}), attendu \"#rrggbb\""
+                        )));
+                    }
+                }
                 "layer" => def.layer = map.next_value()?,
                 "components" => def.components = map.next_value_seed(ComponentsSeed(self.0))?,
                 _ => return Err(A::Error::unknown_field(&field, FIELDS)),
@@ -398,6 +432,23 @@ mod tests {
             def.components[0].try_downcast_ref::<Health>(),
             Some(&Health(7))
         );
+    }
+
+    #[test]
+    fn visual_colors() {
+        let def = parse_def(
+            br##"(visual: Circle(radius: 2.0, color: "#ff0000"))"##,
+            &registry(),
+        )
+        .unwrap();
+        assert_eq!(def.visual.unwrap().color(), Some(Srgba::rgb(1.0, 0.0, 0.0)));
+        for bad in ["rouge", "#ff000", "#gg0000", ""] {
+            let src = format!(r#"(visual: Rect(size: (1.0, 1.0), color: "{bad}"))"#);
+            assert!(
+                err(&src).contains(&format!("couleur `{bad}` invalide")),
+                "{bad}"
+            );
+        }
     }
 
     #[test]
