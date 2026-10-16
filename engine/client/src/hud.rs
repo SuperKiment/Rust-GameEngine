@@ -15,13 +15,6 @@ impl HudLines {
         lines.0.push(String::new());
         lines.0.len() - 1
     }
-
-    /// N'écrit que si la ligne change (évite de marquer la resource modifiée à chaque frame).
-    fn set(&mut self, index: usize, text: String) {
-        if self.0[index] != text {
-            self.0[index] = text;
-        }
-    }
 }
 
 pub trait HudExt {
@@ -48,8 +41,7 @@ impl HudExt for App {
         self.add_systems(
             Update,
             move |query: Query<&C, With<LocalPlayer>>, mut lines: ResMut<HudLines>| {
-                let text = query.single().map(&format).unwrap_or_default();
-                lines.set(index, text);
+                lines.0[index] = query.single().map(&format).unwrap_or_default();
             },
         )
     }
@@ -62,7 +54,7 @@ impl HudExt for App {
         self.add_systems(
             Update,
             move |res: Option<Res<R>>, mut lines: ResMut<HudLines>| {
-                lines.set(index, res.map(|r| format(&r)).unwrap_or_default());
+                lines.0[index] = res.map(|r| format(&r)).unwrap_or_default();
             },
         )
     }
