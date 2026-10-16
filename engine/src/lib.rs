@@ -4,15 +4,18 @@ use bevy::{
     app::ScheduleRunnerPlugin, asset::AssetPlugin, log::LogPlugin, prelude::*,
     state::app::StatesPlugin, window::WindowPlugin,
 };
-use engine_client::{ClientPlugin, MenuPlugin};
+use engine_client::{ClientPlugin, UiPlugin};
 use engine_common::{DefsPlugin, Mode, NetPlugin};
 use engine_server::ServerPlugin;
 
 pub use bevy;
+pub use engine_client::bevy_egui;
+pub use engine_client::bevy_egui::egui;
 
 pub mod prelude {
     pub use super::EnginePlugin;
     pub use bevy::prelude::*;
+    pub use engine_client::HudExt;
     pub use engine_common::{
         DefId, DefRegistry, EngineState, EntityDef, GameComponentExt, GameInputExt, LocalPlayer,
         Mode, Owner, Position, Rotation, SpawnDef, Velocity, Visual, WorldConfig, is_server,
@@ -77,7 +80,7 @@ impl Plugin for EnginePlugin {
                     NetPlugin,
                     ServerPlugin,
                     ClientPlugin,
-                    MenuPlugin,
+                    UiPlugin,
                 ));
             }
         }
@@ -88,6 +91,7 @@ impl Plugin for EnginePlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::prelude::*;
 
     #[test]
     fn server_runs_headless() {
@@ -101,5 +105,23 @@ mod tests {
             app.update();
         }
         assert_eq!(app.world().resource::<Mode>(), &Mode::Server { port: 0 });
+    }
+
+    #[test]
+    fn server_runs_with_hud_and_egui_system() {
+        let mut app = App::new();
+        app.add_plugins(EnginePlugin {
+            title: "test".into(),
+            mode: Some(Mode::Server { port: 0 }),
+        });
+        // Comme un jeu : HUD + écran egui ajoutés aussi sur le serveur headless.
+        app.add_hud::<Position>(|p| format!("{p:?}")).add_systems(
+            bevy_egui::EguiPrimaryContextPass,
+            (|| ()).run_if(in_state(EngineState::InGame)),
+        );
+        app.finish();
+        for _ in 0..3 {
+            app.update();
+        }
     }
 }

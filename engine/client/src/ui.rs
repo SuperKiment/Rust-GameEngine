@@ -1,17 +1,22 @@
-//! Écran de connexion (egui), affiché en `EngineState::Menu`. Écrit `StartGame`.
+//! Plugin egui : écran de connexion (`EngineState::Menu`, écrit `StartGame`) et HUD (`EngineState::InGame`).
 
 use bevy::prelude::*;
 use bevy_egui::{EguiContexts, EguiPlugin, EguiPrimaryContextPass, egui};
 use engine_common::{DEFAULT_PORT, EngineState, Mode, StartGame};
 
-/// Nécessite une fenêtre et le rendu : absent des apps headless (tests).
-pub struct MenuPlugin;
+use crate::hud::HudLines;
 
-impl Plugin for MenuPlugin {
+/// Nécessite une fenêtre et le rendu : absent des apps headless (tests).
+pub struct UiPlugin;
+
+impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(EguiPlugin::default()).add_systems(
             EguiPrimaryContextPass,
-            menu_ui.run_if(in_state(EngineState::Menu)),
+            (
+                menu_ui.run_if(in_state(EngineState::Menu)),
+                hud_ui.run_if(in_state(EngineState::InGame)),
+            ),
         );
     }
 }
@@ -61,5 +66,24 @@ fn menu_ui(
             }
         });
     });
+    Ok(())
+}
+
+/// Lignes non vides de `HudLines`, en haut à gauche. Zone non interactive (ne capte pas la souris).
+fn hud_ui(mut contexts: EguiContexts, lines: Res<HudLines>) -> Result {
+    let ctx = contexts.ctx_mut()?;
+    if lines.0.iter().all(String::is_empty) {
+        return Ok(());
+    }
+    egui::Area::new(egui::Id::new("hud"))
+        .anchor(egui::Align2::LEFT_TOP, egui::vec2(8.0, 8.0))
+        .interactable(false)
+        .show(ctx, |ui| {
+            egui::Frame::popup(ui.style()).show(ui, |ui| {
+                for line in lines.0.iter().filter(|l| !l.is_empty()) {
+                    ui.label(line);
+                }
+            });
+        });
     Ok(())
 }

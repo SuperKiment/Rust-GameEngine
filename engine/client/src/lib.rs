@@ -1,9 +1,12 @@
-//! Rendu 2D, inputs et UI. `ClientPlugin` : jeu (headless-compatible) ; `MenuPlugin` : écran de connexion (egui, fenêtre requise).
+//! Rendu 2D, inputs et UI. `ClientPlugin` : jeu (headless-compatible) ; `UiPlugin` : menu de connexion et HUD (egui, fenêtre requise).
 
-mod menu;
+mod hud;
 mod render;
+mod ui;
 
-pub use menu::MenuPlugin;
+pub use bevy_egui;
+pub use hud::{HudExt, HudLines};
+pub use ui::UiPlugin;
 
 use std::net::Ipv4Addr;
 
@@ -20,7 +23,8 @@ pub struct ClientPlugin;
 
 impl Plugin for ClientPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(render::DefRenderPlugin)
+        app.init_resource::<HudLines>()
+            .add_plugins(render::DefRenderPlugin)
             .add_systems(Startup, spawn_camera)
             .add_systems(Update, mark_local_player)
             .add_systems(OnEnter(EngineState::InGame), connect)

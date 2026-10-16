@@ -55,7 +55,7 @@ Le mode est une resource `Mode`, insérée par la ligne de commande ou par le me
 
 | Commande | Plugins |
 |---|---|
-| `cargo run -p sample` | `DefaultPlugins` (fenêtre) + `NetPlugin` + `ServerPlugin` + `ClientPlugin` + `MenuPlugin` (egui). Écran de connexion : Héberger (host, port par défaut), Rejoindre (adresse), Quitter. |
+| `cargo run -p sample` | `DefaultPlugins` (fenêtre) + `NetPlugin` + `ServerPlugin` + `ClientPlugin` + `UiPlugin` (egui). Écran de connexion : Héberger (host, port par défaut), Rejoindre (adresse), Quitter. |
 | `cargo run -p sample -- host [port]` | Mêmes plugins, mode `Host` direct (menu sauté). Écoute sur `0.0.0.0:<port>`. Solo = host sans autre joueur. |
 | `cargo run -p sample -- server [port]` | `MinimalPlugins` (boucle 64 Hz = pas de `FixedUpdate`) + `LogPlugin` + `NetPlugin` + `ServerPlugin`, sans fenêtre. Écoute sur `0.0.0.0:<port>`. |
 | `cargo run -p sample -- client <ip[:port]>` | Mêmes plugins que sans argument, mode `Client` direct. `<ip>` obligatoire (`localhost` accepté, IPv4 uniquement). |
@@ -102,7 +102,7 @@ Def d'entité = prototype `assets/defs/<id>.def.ron` ; **l'id est le nom du fich
 - Hors V1 : prédiction client / interpolation (le jeu sera net en LAN, latence visible en distant).
 
 ### UI
-bevy_egui (D2). Réel : `MenuPlugin` (`engine/client/src/menu.rs`, fenêtre requise, absent des tests headless) affiche l'écran de connexion en `EngineState::Menu` : "Héberger", champ adresse + "Rejoindre" (même parsing que la CLI, `Mode::parse_addr`, erreur affichée dans l'UI), "Quitter". Pas de thème ; retour au menu après déconnexion hors périmètre (simple log). Cible : des helpers pour afficher un composant ou une resource en une ligne (HUD).
+bevy_egui (D2). Réel : `UiPlugin` (`engine/client/src/ui.rs`, fenêtre requise, absent des tests headless) affiche l'écran de connexion en `EngineState::Menu` : "Héberger", champ adresse + "Rejoindre" (même parsing que la CLI, `Mode::parse_addr`, erreur affichée dans l'UI), "Quitter". Pas de thème ; retour au menu après déconnexion hors périmètre (simple log). HUD : `app.add_hud::<C>(..)` / `add_hud_resource::<R>(..)` (`engine/client/src/hud.rs`), dessinés par `UiPlugin` en `InGame`. Détails : [docs/ui.md](ui.md).
 
 ## 4. Décisions (validées 2026-10-15)
 
