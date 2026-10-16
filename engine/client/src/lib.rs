@@ -1,6 +1,9 @@
-//! Rendu 2D, inputs et UI.
+//! Rendu 2D, inputs et UI. `ClientPlugin` : jeu (headless-compatible) ; `MenuPlugin` : écran de connexion (egui, fenêtre requise).
 
+mod menu;
 mod render;
+
+pub use menu::MenuPlugin;
 
 use std::net::Ipv4Addr;
 
@@ -20,7 +23,7 @@ impl Plugin for ClientPlugin {
         app.add_plugins(render::DefRenderPlugin)
             .add_systems(Startup, spawn_camera)
             .add_systems(Update, mark_local_player)
-            .add_systems(OnEnter(EngineState::Ready), connect)
+            .add_systems(OnEnter(EngineState::InGame), connect)
             .add_systems(OnEnter(ClientState::Connected), || {
                 info!("connecté au serveur");
             })
@@ -53,8 +56,8 @@ fn mark_local_player(mut own_player: MessageReader<OwnPlayer>, mut commands: Com
     }
 }
 
-/// Ouvre la connexion vers le serveur (mode client uniquement), une fois les defs prêtes :
-/// le réseau s'ouvre quand les données sont prêtes (sinon les entités arrivent sans leurs defs).
+/// Ouvre la connexion vers le serveur (mode client uniquement) au début de la partie :
+/// les defs sont prêtes (sinon les entités arrivent sans leurs defs).
 /// Le host n'ouvre rien : son joueur local est `ClientId::Server`.
 /// Certificat serveur non vérifié (LAN/dev, voir docs/architecture.md).
 fn connect(mode: Res<Mode>, channels: Res<RepliconChannels>, mut client: ResMut<QuinnetClient>) {

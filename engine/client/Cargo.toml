@@ -6,3 +6,4 @@ version.workspace = true
 [dependencies]
 engine_common = { path = "../common" }
 bevy = { workspace = true, features = ["2d"] }
+bevy_egui = { workspace = true, features = ["render", "default_fonts", "manage_clipboard"] }

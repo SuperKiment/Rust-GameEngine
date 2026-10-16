@@ -8,7 +8,8 @@ use bevy::{
     state::app::StatesPlugin,
 };
 use engine_common::{
-    DefId, DefRegistry, DefsPlugin, EngineState, EntityDef, Position, SpawnDef, Visual, WorldConfig,
+    DefId, DefRegistry, DefsPlugin, EngineState, EntityDef, Mode, Position, SpawnDef, StartGame,
+    Visual, WorldConfig,
 };
 
 #[derive(Component, Reflect, Debug, PartialEq)]
@@ -48,12 +49,12 @@ fn run_until(app: &mut App, done: impl Fn(&App) -> bool) -> bool {
 }
 
 #[test]
-fn valid_defs_reach_ready() {
+fn valid_defs_reach_menu_without_mode() {
     let mut app = app("ok");
     let ready = run_until(&mut app, |a| {
-        *a.world().resource::<State<EngineState>>().get() == EngineState::Ready
+        *a.world().resource::<State<EngineState>>().get() == EngineState::Menu
     });
-    assert!(ready, "jamais Ready");
+    assert!(ready, "jamais Menu");
 
     let world = app.world();
     assert_eq!(world.resource::<WorldConfig>().tile_size, 32.0);
@@ -66,6 +67,32 @@ fn valid_defs_reach_ready() {
         Some(&TestHealth(30))
     );
     assert!(def.components[1].try_downcast_ref::<TestTag>().is_some());
+}
+
+#[test]
+fn valid_defs_reach_in_game_with_mode() {
+    let mut app = app("ok");
+    app.insert_resource(Mode::Server { port: 0 });
+    let in_game = run_until(&mut app, |a| {
+        *a.world().resource::<State<EngineState>>().get() == EngineState::InGame
+    });
+    assert!(in_game, "jamais InGame");
+}
+
+#[test]
+fn start_game_sets_mode_and_enters_in_game() {
+    let mut app = app("ok");
+    assert!(run_until(&mut app, |a| {
+        *a.world().resource::<State<EngineState>>().get() == EngineState::Menu
+    }));
+    assert!(app.world().get_resource::<Mode>().is_none());
+
+    app.world_mut()
+        .write_message(StartGame(Mode::Server { port: 1234 }));
+    assert!(run_until(&mut app, |a| {
+        *a.world().resource::<State<EngineState>>().get() == EngineState::InGame
+    }));
+    assert_eq!(app.world().resource::<Mode>(), &Mode::Server { port: 1234 });
 }
 
 #[test]
@@ -102,7 +129,7 @@ fn unknown_component_fails_and_stays_loading() {
 fn spawn_def_inserts_components() {
     let mut app = app("ok");
     assert!(run_until(&mut app, |a| {
-        *a.world().resource::<State<EngineState>>().get() == EngineState::Ready
+        *a.world().resource::<State<EngineState>>().get() == EngineState::Menu
     }));
 
     let pos = Vec2::new(3.0, -4.0);

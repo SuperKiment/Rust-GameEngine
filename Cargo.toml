@@ -11,7 +11,7 @@ bevy = { version = "0.20", default-features = false }
 bevy_replicon = "0.45"
 bevy_replicon_quinnet = "0.21"
 bevy_quinnet = { version = "0.22", default-features = false }
-bevy_egui = "0.43"
+bevy_egui = { version = "0.43", default-features = false }
 serde = { version = "1", features = ["derive"] }
 ron = "0.12"
 

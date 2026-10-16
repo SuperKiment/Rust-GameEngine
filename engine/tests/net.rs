@@ -15,7 +15,7 @@ fn client_connects_then_disconnects() {
     let mut server = game_app(Mode::Server { port: 0 });
     server.add_plugins(ServerPlugin);
     server.finish();
-    // Les defs se chargent, puis `Ready` ouvre l'endpoint.
+    // Les defs se chargent, puis `InGame` ouvre l'endpoint.
     run_until(&mut [&mut server], "serveur prêt", |a| {
         a[0].world().resource::<QuinnetServer>().is_listening()
     });

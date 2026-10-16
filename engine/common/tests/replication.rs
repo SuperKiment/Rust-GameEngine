@@ -38,10 +38,10 @@ fn app() -> App {
 }
 
 fn ready(app: &App) -> bool {
-    *app.world().resource::<State<EngineState>>().get() == EngineState::Ready
+    *app.world().resource::<State<EngineState>>().get() == EngineState::Menu
 }
 
-/// Serveur et client `Ready` et connectés.
+/// Serveur et client prêts (`Menu`, pas de mode) et connectés.
 fn connected() -> (App, App) {
     let (mut server, mut client) = (app(), app());
     for _ in 0..100 {
@@ -53,7 +53,7 @@ fn connected() -> (App, App) {
         }
         sleep(Duration::from_millis(20));
     }
-    panic!("jamais Ready");
+    panic!("jamais Menu");
 }
 
 /// Un tick serveur, envoi au client, mise à jour du client.

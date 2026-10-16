@@ -6,10 +6,10 @@
 | 27-35 | `world.ron` |
 | 36-58 | Def d'entité |
 | 59-70 | Ajouter un composant de jeu |
-| 71-88 | Cycle de vie : `EngineState` |
-| 89-97 | Erreurs de chargement |
-| 98-100 | Hot-reload |
-| 101-106 | Lancer hors cargo |
+| 71-89 | Cycle de vie : `EngineState` |
+| 90-98 | Erreurs de chargement |
+| 99-101 | Hot-reload |
+| 102-107 | Lancer hors cargo |
 
 # Format des données d'un jeu
 
@@ -69,7 +69,7 @@ struct Health(u32);
 - Moteur : `DefId`, `Position`, `Rotation` sont déjà répliqués. `Velocity` ne l'est pas (pas de prédiction en V1).
 
 ## Cycle de vie : `EngineState`
-`Loading` (chargement de `defs/` + `world.ron`) puis `Ready`. Spawner uniquement une fois `Ready`, côté serveur :
+`Loading` (chargement de `defs/` + `world.ron`), puis `Menu` (écran de connexion, tant qu'aucun `Mode` n'est choisi) ou directement `InGame` si le mode est donné en ligne de commande. Le mode choisi au menu est inséré (resource `Mode`) puis l'état passe à `InGame`. Spawner à l'entrée dans `InGame`, côté serveur seulement :
 ```rust
 use engine::prelude::*;
 
@@ -77,14 +77,15 @@ fn spawn_world(mut commands: Commands) {
     commands.spawn_def("goblin", Vec2::new(64.0, 0.0));
 }
 
-app.add_systems(OnEnter(EngineState::Ready), spawn_world);
+// Le plugin du jeu est aussi ajouté en mode client : `is_server` (Host ou Server) garde les systèmes serveur.
+app.add_systems(OnEnter(EngineState::InGame), spawn_world.run_if(is_server));
 ```
 - `spawn_def(id, pos)` crée `(DefId(id), Position(pos), Replicated)` + une copie des composants de la def, et renvoie les `EntityCommands` (ajoute d'autres composants avec `.insert(..)`).
 - Id inconnu ou def non chargée : `error!` avec l'id, l'entité reste avec `DefId` + `Position`.
 - Un `"Position"` dans la def est écrasé par `pos`.
-- Serveur uniquement (serveur autoritaire). Toute entité issue d'une def est répliquée (`Replicated`).
+- Serveur uniquement (serveur autoritaire) : sans `.run_if(is_server)`, un client spawnerait lui aussi l'entité. Toute entité issue d'une def est répliquée (`Replicated`).
 - Client : à l'arrivée d'une entité répliquée avec un `DefId`, `DefsPlugin` insère les composants de la def **absents** de l'entité. Une valeur répliquée prime toujours sur celle de la def, quel que soit l'ordre d'arrivée. Def inconnue : `error!` avec l'id. Le host n'est pas concerné (entités locales).
-- Le réseau (écoute serveur, connexion client) s'ouvre à l'entrée dans `Ready` : les defs sont chargées avant l'arrivée des entités.
+- Le réseau (écoute serveur, connexion client) s'ouvre à l'entrée dans `InGame` : les defs sont chargées avant l'arrivée des entités.
 
 ## Erreurs de chargement
 Le moteur reste en `Loading` et logue (`error!`) le fichier fautif et la cause, par exemple :

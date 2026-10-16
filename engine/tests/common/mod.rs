@@ -10,9 +10,9 @@ use bevy::{asset::AssetPlugin, prelude::*, state::app::StatesPlugin};
 use engine_common::bevy_replicon::prelude::*;
 use engine_common::{DefsPlugin, EngineState, Mode, NetPlugin};
 
-/// App headless avec le réseau et le vrai chargement des defs (`tests/assets`) :
-/// `Ready` quand `world.ron` et `defs/` sont chargés.
-pub fn game_app(mode: Mode) -> App {
+/// App headless avec le réseau et le vrai chargement des defs (`tests/assets`), sans `Mode` :
+/// `Menu` quand `world.ron` et `defs/` sont chargés.
+pub fn menu_app() -> App {
     let mut app = App::new();
     app.add_plugins((
         MinimalPlugins,
@@ -24,11 +24,17 @@ pub fn game_app(mode: Mode) -> App {
         NetPlugin,
         DefsPlugin,
     ))
-    .insert_resource(mode)
     // Assets que le rendu du client remplit : pas de GPU ici, mais les stores doivent exister.
     .init_asset::<Mesh>()
     .init_asset::<ColorMaterial>()
     .init_asset::<Image>();
+    app
+}
+
+/// Comme `menu_app` avec un mode fourni (CLI) : `InGame` quand les defs sont chargées.
+pub fn game_app(mode: Mode) -> App {
+    let mut app = menu_app();
+    app.insert_resource(mode);
     app
 }
 
@@ -57,5 +63,5 @@ pub fn client_state(client: &App) -> ClientState {
 }
 
 pub fn is_ready(app: &App) -> bool {
-    **app.world().resource::<State<EngineState>>() == EngineState::Ready
+    **app.world().resource::<State<EngineState>>() == EngineState::InGame
 }

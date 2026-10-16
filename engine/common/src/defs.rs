@@ -6,7 +6,7 @@
 
 use std::{fmt, sync::Arc};
 
-use crate::world::WorldConfig;
+use crate::{Mode, StartGame, world::WorldConfig};
 use bevy::{
     asset::{AssetLoader, LoadContext, LoadState, LoadedFolder, io::Reader},
     ecs::{error::BevyError, reflect::ReflectComponent},
@@ -55,12 +55,14 @@ pub struct EntityDef {
     pub components: Vec<Box<dyn PartialReflect>>,
 }
 
-/// `Loading` tant que `defs/` et `world.ron` ne sont pas chargés, puis `Ready`.
+/// `Loading` tant que `defs/` et `world.ron` ne sont pas chargés. Ensuite `InGame` si un `Mode`
+/// est déjà fourni (CLI), sinon `Menu` jusqu'au `StartGame` du menu.
 #[derive(States, Default, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum EngineState {
     #[default]
     Loading,
-    Ready,
+    Menu,
+    InGame,
 }
 
 /// Id de def -> handle. Reconstruit quand le dossier `defs/` change.
@@ -277,7 +279,8 @@ struct DefHandles {
     world: Handle<WorldConfig>,
 }
 
-/// Charge `defs/` + `world.ron`, maintient `DefRegistry` et `WorldConfig`, pilote `EngineState`.
+/// Charge `defs/` + `world.ron`, maintient `DefRegistry` et `WorldConfig`, pilote `EngineState`
+/// (y compris `StartGame` : insère le `Mode` et passe en `InGame`).
 /// Côté client, reconstruit les composants de def des entités répliquées (`DefId`).
 /// Demande `AssetPlugin` et `StatesPlugin` déjà ajoutés.
 pub struct DefsPlugin;
@@ -290,6 +293,7 @@ impl Plugin for DefsPlugin {
             .init_asset_loader::<WorldConfigLoader>()
             .init_state::<EngineState>()
             .init_resource::<DefRegistry>()
+            .add_message::<StartGame>()
             .add_observer(crate::spawn::rebuild_from_def)
             .add_systems(Startup, start_loading)
             .add_systems(
@@ -301,7 +305,8 @@ impl Plugin for DefsPlugin {
                 )
                     .chain(),
             )
-            .add_systems(OnEnter(EngineState::Ready), |defs: Res<DefRegistry>| {
+            .add_systems(Update, start_game.run_if(in_state(EngineState::Menu)))
+            .add_systems(OnExit(EngineState::Loading), |defs: Res<DefRegistry>| {
                 info!("defs ready: {}", defs.len());
             });
     }
@@ -362,12 +367,27 @@ fn sync_registry(
     }
 }
 
-/// `Loading` -> `Ready` quand tout est chargé ; en cas d'échec, log l'erreur et reste en `Loading`.
+/// Menu : le `StartGame` insère le `Mode` choisi et lance la partie.
+fn start_game(
+    mut requests: MessageReader<StartGame>,
+    mut commands: Commands,
+    mut next: ResMut<NextState<EngineState>>,
+) {
+    // Un seul démarrage : si plusieurs messages arrivent dans la même frame, le premier gagne.
+    if let Some(StartGame(mode)) = requests.read().next() {
+        commands.insert_resource(mode.clone());
+        next.set(EngineState::InGame);
+    }
+}
+
+/// `Loading` -> `InGame` (mode déjà connu) ou `Menu` quand tout est chargé ;
+/// en cas d'échec, log l'erreur et reste en `Loading`.
 fn check_ready(
     handles: Res<DefHandles>,
     server: Res<AssetServer>,
     config: Option<Res<WorldConfig>>,
     folders: Res<Assets<LoadedFolder>>,
+    mode: Option<Res<Mode>>,
     mut next: ResMut<NextState<EngineState>>,
     mut failed: Local<Option<Arc<str>>>,
 ) {
@@ -389,7 +409,11 @@ fn check_ready(
         && server.is_loaded_with_dependencies(&handles.world);
     // Le registre se reconstruit sur l'event du dossier : on attend qu'il l'ait fait.
     if loaded && config.is_some() && folders.contains(&handles.folder) {
-        next.set(EngineState::Ready);
+        next.set(if mode.is_some() {
+            EngineState::InGame
+        } else {
+            EngineState::Menu
+        });
     }
 }
 
