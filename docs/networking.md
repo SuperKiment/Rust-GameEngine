@@ -2,12 +2,12 @@
 | Lignes | Section |
 |---|---|
 | 12-15 | Réseau : réplication, joueur par client, inputs |
-| 16-31 | Modes et connexion |
-| 32-37 | Réplication |
-| 38-54 | Un joueur par client |
-| 55-106 | Inputs |
-| 107-114 | — Limites |
-| 115-121 | Tests |
+| 16-32 | Modes et connexion |
+| 33-38 | Réplication |
+| 39-55 | Un joueur par client |
+| 56-107 | Inputs |
+| 108-115 | — Limites |
+| 116-122 | Tests |
 
 # Réseau : réplication, joueur par client, inputs
 
@@ -24,6 +24,7 @@ Le serveur est autoritaire : l'état de jeu ne change que chez lui. Le client en
 
 - **Le mode vient de la ligne de commande ou du menu.** `host`, `server` et `client <ip>` démarrent directement la partie. Sans argument, le binaire affiche l'écran de connexion (`EngineState::Menu`, "Héberger" / "Rejoindre" / "Quitter") ; le choix écrit `StartGame(Mode)`, qui insère la resource `Mode` et passe en `InGame`. Le binaire avec fenêtre embarque donc toujours serveur et client ; `server` reste headless, sans client ni egui.
 - **`is_server` : règle pour tout système serveur du jeu.** Le plugin du jeu est ajouté dans tous les modes, et avant le choix du mode (menu) : un système qui change l'état de jeu doit avoir `.run_if(is_server)` (vraie en `Host` ou `Server`, dans `engine::prelude`), sinon il tourne aussi sur un client. Les observers réseau du serveur (client connecté...) ne se déclenchent que côté serveur : pas de condition.
+- **Échec de connexion** (`ClientState` Connecting → Disconnected, ex. IP injoignable) : log `error!`, retrait de `Mode`, retour en `EngineState::Menu` et resource `ConnectionError(message)` affichée par le menu (effacée au prochain `StartGame`). Vaut aussi pour `client <ip>` en CLI : on retombe sur le menu avec le message. Limite : la perte d'une connexion établie en jeu (Connected → Disconnected) reste un simple `warn!`, sans retour au menu.
 - IPv4 uniquement (V1) : le serveur écoute sur `0.0.0.0`, un client refuse une adresse IPv6.
 - L'endpoint (serveur) et la connexion (client) s'ouvrent à `OnEnter(EngineState::InGame)`, une fois les defs chargées : sinon des entités arriveraient sans leurs defs.
 - Le host n'ouvre aucune connexion : replicon livre localement ses messages (`ClientId::Server`). Le code de jeu est identique en solo, host et client : aucune branche "si solo".

@@ -41,7 +41,7 @@ fn help_window(mut contexts: EguiContexts) -> Result {
 - Un panneau plein écran se montre dans un `egui::Ui` créé sur `ctx.viewport_rect()` (voir `menu_ui`) ; fenêtres et `Area` se montrent directement sur le contexte.
 
 ## Menu de connexion
-`menu_ui` (`engine/client/src/ui.rs`), en `EngineState::Menu` : "Héberger", champ adresse + "Rejoindre", "Quitter". Écrit `StartGame(Mode)`. Pas de thème ; hors périmètre : retour au menu après déconnexion.
+`menu_ui` (`engine/client/src/ui.rs`), en `EngineState::Menu` : "Héberger", champ adresse + "Rejoindre", "Quitter". Écrit `StartGame(Mode)`. Affiche l'erreur de saisie d'adresse ou la resource `ConnectionError` (échec de connexion, retour automatique au menu). Pas de thème ; hors périmètre : retour au menu après perte d'une connexion établie en jeu (voir `docs/networking.md`).
 
 ## Hors périmètre
 UI définie en data (fichiers RON).

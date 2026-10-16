@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use bevy_egui::{EguiContexts, EguiPlugin, EguiPrimaryContextPass, egui};
 use engine_common::{DEFAULT_PORT, EngineState, Mode, StartGame};
 
-use crate::hud::HudLines;
+use crate::{ConnectionError, hud::HudLines};
 
 /// Nécessite une fenêtre et le rendu : absent des apps headless (tests).
 pub struct UiPlugin;
@@ -30,6 +30,7 @@ fn menu_ui(
     mut exit: MessageWriter<AppExit>,
     mut addr: Local<Option<String>>,
     mut error: Local<Option<String>>,
+    conn_error: Option<Res<ConnectionError>>,
 ) -> Result {
     let addr = addr.get_or_insert_with(|| DEFAULT_ADDR.to_string());
     // egui 0.36 : un panneau s'affiche dans un `Ui`. Celui-ci couvre toute la fenêtre.
@@ -52,12 +53,16 @@ fn menu_ui(
             if ui.button("Rejoindre").clicked() {
                 match Mode::parse_addr(addr.trim()) {
                     Ok(addr) => {
+                        *error = None;
                         start.write(StartGame(Mode::Client { addr }));
                     }
                     Err(err) => *error = Some(err),
                 }
             }
-            if let Some(err) = error.as_deref() {
+            if let Some(err) = error
+                .as_deref()
+                .or(conn_error.as_ref().map(|e| e.0.as_str()))
+            {
                 ui.colored_label(egui::Color32::LIGHT_RED, err);
             }
             ui.add_space(16.0);
