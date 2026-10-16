@@ -2,12 +2,12 @@
 | Lignes | Section |
 |---|---|
 | 12-15 | Réseau : réplication, joueur par client, inputs |
-| 16-29 | Modes et connexion |
-| 30-35 | Réplication |
-| 36-52 | Un joueur par client |
-| 53-98 | Inputs |
-| 99-106 | — Limites |
-| 107-111 | Tests |
+| 16-32 | Modes et connexion |
+| 33-38 | Réplication |
+| 39-55 | Un joueur par client |
+| 56-107 | Inputs |
+| 108-115 | — Limites |
+| 116-122 | Tests |
 
 # Réseau : réplication, joueur par client, inputs
 
@@ -18,14 +18,17 @@ Le serveur est autoritaire : l'état de jeu ne change que chez lui. Le client en
 
 | Mode | Réseau | Joueur local |
 |---|---|---|
-| `host` (défaut, solo) | serveur + client dans le même process, endpoint ouvert | `ClientId::Server` : un joueur est spawn à `OnEnter(EngineState::Ready)` |
+| `host` (solo) | serveur + client dans le même process, endpoint ouvert | `ClientId::Server` : un joueur est spawn à `OnEnter(EngineState::InGame)` |
 | `server` | serveur headless | aucun |
 | `client <ip[:port]>` | connexion au serveur | celui que le serveur lui assigne |
 
+- **Le mode vient de la ligne de commande ou du menu.** `host`, `server` et `client <ip>` démarrent directement la partie. Sans argument, le binaire affiche l'écran de connexion (`EngineState::Menu`, "Héberger" / "Rejoindre" / "Quitter") ; le choix écrit `StartGame(Mode)`, qui insère la resource `Mode` et passe en `InGame`. Le binaire avec fenêtre embarque donc toujours serveur et client ; `server` reste headless, sans client ni egui.
+- **`is_server` : règle pour tout système serveur du jeu.** Le plugin du jeu est ajouté dans tous les modes, et avant le choix du mode (menu) : un système qui change l'état de jeu doit avoir `.run_if(is_server)` (vraie en `Host` ou `Server`, dans `engine::prelude`), sinon il tourne aussi sur un client. Les observers réseau du serveur (client connecté...) ne se déclenchent que côté serveur : pas de condition.
+- **Échec de connexion** (`ClientState` Connecting → Disconnected, ex. IP injoignable) : log `error!`, retrait de `Mode`, retour en `EngineState::Menu` et resource `ConnectionError(message)` affichée par le menu (effacée au prochain `StartGame`). Vaut aussi pour `client <ip>` en CLI : on retombe sur le menu avec le message. Limite : la perte d'une connexion établie en jeu (Connected → Disconnected) reste un simple `warn!`, sans retour au menu.
 - IPv4 uniquement (V1) : le serveur écoute sur `0.0.0.0`, un client refuse une adresse IPv6.
-- L'endpoint (serveur) et la connexion (client) s'ouvrent à `OnEnter(EngineState::Ready)`, une fois les defs chargées : sinon des entités arriveraient sans leurs defs.
+- L'endpoint (serveur) et la connexion (client) s'ouvrent à `OnEnter(EngineState::InGame)`, une fois les defs chargées : sinon des entités arriveraient sans leurs defs.
 - Le host n'ouvre aucune connexion : replicon livre localement ses messages (`ClientId::Server`). Le code de jeu est identique en solo, host et client : aucune branche "si solo".
-- Les plugins, composants et messages sont enregistrés dans le même ordre sur le serveur et le client (replicon vérifie un hash du protocole à la connexion). Tout plugin de jeu est ajouté dans les 3 modes.
+- Les plugins, composants et messages sont enregistrés dans le même ordre sur le serveur et le client (replicon vérifie un hash du protocole à la connexion). Tout plugin de jeu est ajouté dans tous les modes.
 
 ## Réplication
 - `app.register_game_component::<T>()` = `register_type` + `replicate` (serveur -> client). Le moteur réplique `DefId`, `Position`, `Rotation`.
@@ -65,12 +68,18 @@ pub struct SamplePlugin;
 
 impl Plugin for SamplePlugin {
     fn build(&self, app: &mut App) {
-        // Dans les 3 modes, même ordre partout.
+        // Dans tous les modes, même ordre partout.
         app.register_input::<MoveInput>()
-            // Client : lit le clavier, écrit l'input (pas de clavier sur un serveur dédié).
-            .add_systems(Update, send_move.run_if(resource_exists::<ButtonInput<KeyCode>>))
-            // Serveur : applique l'input à son joueur.
-            .add_systems(FixedUpdate, apply_move);
+            // Client : lit le clavier, écrit l'input (pas de clavier sur un serveur dédié,
+            // et pas d'input pendant le menu).
+            .add_systems(
+                Update,
+                send_move
+                    .run_if(in_state(EngineState::InGame))
+                    .run_if(resource_exists::<ButtonInput<KeyCode>>),
+            )
+            // Serveur : applique l'input à son joueur (`is_server` : pas sur un client).
+            .add_systems(FixedUpdate, apply_move.run_if(is_server));
     }
 }
 
@@ -105,6 +114,8 @@ Bornes de `I` : `Component + Message + Clone + Serialize + DeserializeOwned`. Le
 - L'input n'est pas répliqué aux autres clients : si les autres doivent le voir, le système serveur écrit son effet dans un composant répliqué (`Position`, ...).
 
 ## Tests
+- `engine/tests/menu.rs` : app headless sans `Mode` -> `Menu` ; `StartGame(Host)` -> `InGame`, écoute ouverte, `LocalPlayer` présent.
+- `engine/common/src/lib.rs` (tests) : parsing CLI (sans argument = menu) et run condition `is_server` (vraie en Host/Server, fausse en Client et sans mode).
 - `engine/tests/net.rs` : connexion/déconnexion réelles (localhost, port choisi par l'OS).
 - `engine/tests/players.rs` : 1 serveur + 2 clients réels avec chargement des defs (`engine/tests/assets/`) : un `LocalPlayer` par client, chaque client déplace son joueur via un input de test, un client part et son joueur disparaît chez les autres. Test host sans réseau : joueur local + input local.
 - `engine/common/tests/replication.rs` : réplication des defs avec le backend de test replicon, sans réseau.

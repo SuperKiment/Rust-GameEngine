@@ -4,7 +4,7 @@ edition.workspace = true
 version.workspace = true
 
 [dependencies]
-bevy = { workspace = true, features = ["std", "serialize", "bevy_asset", "bevy_state", "bevy_log"] }
+bevy = { workspace = true, features = ["std", "serialize", "bevy_asset", "bevy_state", "bevy_log", "bevy_color"] }
 bevy_replicon.workspace = true
 bevy_replicon_quinnet.workspace = true
 bevy_quinnet.workspace = true

@@ -70,7 +70,7 @@ fn send_move(client: &mut App, movement: Vec2) {
 fn each_client_moves_its_own_player() {
     let mut server = server_app(Mode::Server { port: 0 });
     server.finish();
-    // Les defs se chargent, puis `Ready` ouvre l'endpoint.
+    // Les defs se chargent, puis `InGame` ouvre l'endpoint.
     run_until(&mut [&mut server], "serveur prêt", |a| {
         is_ready(a[0]) && a[0].world().resource::<QuinnetServer>().is_listening()
     });

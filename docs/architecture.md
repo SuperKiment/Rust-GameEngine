@@ -4,18 +4,18 @@
 | 16-19 | Architecture du moteur |
 | 20-27 | 1. Objectif |
 | 28-44 | 2. Architecture cible |
-| 45-51 | — Flux |
-| 52-62 | — Modes de lancement (un seul binaire par jeu) |
-| 63-64 | 3. Briques |
-| 65-69 | — World 2D |
-| 70-87 | — Data-driven (defs RON) |
-| 88-98 | — Réseau |
-| 99-101 | — UI |
-| 102-111 | 4. Décisions (validées 2026-10-15) |
+| 45-52 | — Flux |
+| 53-66 | — Modes de lancement (un seul binaire par jeu) |
+| 67-68 | 3. Briques |
+| 69-74 | — World 2D |
+| 75-92 | — Data-driven (defs RON) |
+| 93-103 | — Réseau |
+| 104-106 | — UI |
+| 107-117 | 4. Décisions (validées 2026-10-15) |
 
 # Architecture du moteur
 
-Statut : **M1 : socle réel ; M3 : réseau et réplication des defs en cours ; le reste = cible**. Mise à jour à chaque milestone pour refléter le code réel. Suivi des étapes : milestones M0-M5 sur GitHub.
+Statut : **M1 : socle réel ; M3 : réseau et réplication des defs en cours ; M4 : rendu 2D des defs + caméra + écran de connexion egui faits (inputs/HUD = cible) ; le reste = cible**. Mise à jour à chaque milestone pour refléter le code réel. Suivi des étapes : milestones M0-M5 sur GitHub.
 
 ## 1. Objectif
 Un moteur 2D minimal sur lequel un jeu se génère avec un minimum de tokens :
@@ -38,23 +38,27 @@ games/
   sample/             jeu exemple (bin) : dépend uniquement de `engine` ; assets/*.ron + src/ (gameplay)
 ```
 
-- `EnginePlugin { title, mode }` : `from_args(title)` parse `std::env::args().skip(1)` (erreur : usage sur stderr, exit 2). `build` insère la resource `Mode` puis ajoute les plugins du mode (ci-dessous).
-- `engine::prelude` = `bevy::prelude::*` + `EnginePlugin` + `Mode` ; `engine::bevy` ré-exporté. Un jeu ne dépend que de `engine`.
+- `EnginePlugin { title, mode: Option<Mode> }` : `from_args(title)` parse `std::env::args().skip(1)` (erreur : usage sur stderr, exit 2 ; sans argument : `None`, le mode sera choisi au menu). `build` insère la resource `Mode` si elle est connue puis ajoute les plugins (ci-dessous).
+- `engine::prelude` = `bevy::prelude::*` + `EnginePlugin` + `Mode` + `is_server` (run condition) ; `engine::bevy` ré-exporté. Un jeu ne dépend que de `engine`.
 - `main.rs` d'un jeu : `App::new().add_plugins(EnginePlugin::from_args("Sample")).run();`
 
 ### Flux
 1. Serveur et client chargent les mêmes defs (`common`).
-2. Le serveur spawn une entité depuis une def : `spawn_def("goblin", pos)` (ajoute `Replicated`). Le réseau n'est ouvert qu'à `EngineState::Ready` : les defs sont chargées avant toute réplication.
+2. Le serveur spawn une entité depuis une def : `spawn_def("goblin", pos)` (ajoute `Replicated`). Le réseau n'est ouvert qu'à `EngineState::InGame` : les defs sont chargées avant toute réplication.
 3. Replicon réplique `DefId`, `Position`, `Rotation` + les composants de jeu enregistrés avec `register_game_component`.
-4. Le client reçoit `DefId`, retrouve les composants statiques dans sa copie des defs (observer de `DefsPlugin`, valeur répliquée prioritaire), affiche (rendu : M4).
+4. Le client reçoit `DefId`, retrouve les composants statiques dans sa copie des defs (observer de `DefsPlugin`, valeur répliquée prioritaire), puis affiche : un observer d'`engine_client` (`DefRenderPlugin`) ajoute le visuel de la def (`Mesh2d` + `ColorMaterial`, ou `Sprite`) et un `Transform` avec `z = layer`. Même code pour une entité répliquée (client) et locale (host).
+   Chaque frame, avant la propagation des transforms (`PostUpdate`, avant `TransformSystems::Propagate`), `Position`/`Rotation` sont copiés dans `Transform` (xy / rotation z) et la caméra 2D suit le `LocalPlayer`. Pas de prédiction ni d'interpolation.
 5. Le client envoie des inputs (messages client → serveur), le serveur les applique.
 
 ### Modes de lancement (un seul binaire par jeu)
+Le mode est une resource `Mode`, insérée par la ligne de commande ou par le menu de connexion (`StartGame(Mode)`). États : `Loading` -> `Menu` (pas de mode) ou `InGame` (mode donné). Le binaire avec fenêtre (sans argument, `host`, `client`) embarque toujours serveur et client, puisque le mode peut être choisi au runtime ; les systèmes serveur sont gardés par la run condition `is_server` (Host ou Server). `server` est headless, sans client ni egui.
+
 | Commande | Plugins |
 |---|---|
-| `cargo run -p sample -- host [port]` (défaut) | `DefaultPlugins` (fenêtre) + `NetPlugin` + `ServerPlugin` + `ClientPlugin`. Écoute sur `0.0.0.0:<port>`. Solo = host sans autre joueur. |
+| `cargo run -p sample` | `DefaultPlugins` (fenêtre) + `NetPlugin` + `ServerPlugin` + `ClientPlugin` + `UiPlugin` (egui). Écran de connexion : Héberger (host, port par défaut), Rejoindre (adresse), Quitter. |
+| `cargo run -p sample -- host [port]` | Mêmes plugins, mode `Host` direct (menu sauté). Écoute sur `0.0.0.0:<port>`. Solo = host sans autre joueur. |
 | `cargo run -p sample -- server [port]` | `MinimalPlugins` (boucle 64 Hz = pas de `FixedUpdate`) + `LogPlugin` + `NetPlugin` + `ServerPlugin`, sans fenêtre. Écoute sur `0.0.0.0:<port>`. |
-| `cargo run -p sample -- client <ip[:port]>` | `DefaultPlugins` + `NetPlugin` + `ClientPlugin`. `<ip>` obligatoire (`localhost` accepté, IPv4 uniquement). |
+| `cargo run -p sample -- client <ip[:port]>` | Mêmes plugins que sans argument, mode `Client` direct. `<ip>` obligatoire (`localhost` accepté, IPv4 uniquement). |
 
 Port par défaut : `DEFAULT_PORT` = 5000 (`engine/common/src/net.rs`), pris quand `[port]` ou `:port` est absent. Port occupé : le `server` quitte avec une erreur, le `host` log l'erreur et reste jouable en solo (sans accueillir de client).
 
@@ -63,9 +67,10 @@ Limite connue : un seul binaire par jeu, donc le mode `server` d'un jeu lie quan
 ## 3. Briques
 
 ### World 2D
-- Composants répliqués `Position(Vec2)`, `Rotation(f32)`, `Velocity(Vec2)` dans `common` ; le client synchronise `Position` → `Transform` (le `Transform` Bevy n'est pas répliqué : trop lourd).
+- Composants répliqués `Position(Vec2)`, `Rotation(f32)`, `Velocity(Vec2)` dans `common` ; le client synchronise `Position`/`Rotation` → `Transform` des entités qui ont un visuel (le `Transform` Bevy n'est pas répliqué : trop lourd). Les entités sans visuel n'ont pas de `Transform`.
 - `WorldConfig` en RON : bornes du monde, taille de tuile (helpers grille ↔ monde).
-- Profondeur d'affichage : `layer` dans la def → `z` du `Transform`.
+- Profondeur d'affichage : `layer` dans la def → `z` du `Transform` (posé à l'ajout du visuel, la sync ne touche que xy). Le rendu vit uniquement dans `engine_client` (le serveur dédié ne tire pas `bevy_render`).
+- Caméra : `Camera2d` spawnée au démarrage, copie le xy de la `Position` du `LocalPlayer` chaque frame, sans lissage.
 
 ### Data-driven (defs RON)
 Def d'entité = prototype `assets/defs/<id>.def.ron` ; **l'id est le nom du fichier** (pas de champ `id`). Les composants sont résolus par **réflexion Bevy** (nom court ou complet) :
@@ -81,14 +86,14 @@ Def d'entité = prototype `assets/defs/<id>.def.ron` ; **l'id est le nom du fich
 )
 ```
 - Côté jeu : `#[derive(Component, Reflect, Serialize, Deserialize)] #[reflect(Component)] struct Health(u32);` : chargeable depuis les data sans autre ligne (`reflect_auto_register`) ; la réplication (M3) aura son enregistrement dédié.
-- `DefRegistry` (resource) : id -> handle, via l'asset server de Bevy, hot-reload en dev. `EngineState::Loading -> Ready` quand tout est chargé.
+- `DefRegistry` (resource) : id -> handle, via l'asset server de Bevy, hot-reload en dev. `EngineState::Loading -> Menu | InGame` quand tout est chargé.
 - Serveur : `commands.spawn_def("goblin", pos)` spawn `DefId` + `Position` + copie des composants de la def.
 - Format complet, erreurs, lancement : [data-format.md](data-format.md).
 
 ### Réseau
 - `bevy_replicon` : réplication serveur-autoritaire des composants enregistrés.
 - Transport : bevy_replicon_quinnet (QUIC) (D1).
-- Réel aujourd'hui : `NetPlugin` (`engine/common/src/net.rs` = `RepliconPlugins` + `RepliconQuinnetPlugins`), ajouté une seule fois par `EnginePlugin` dans les 3 modes. `ServerPlugin` ouvre l'endpoint (host/server), `ClientPlugin` ouvre la connexion (client), tous deux à `OnEnter(EngineState::Ready)`. Le host n'ouvre aucune connexion : son joueur local est `ClientId::Server`. Connexions et déconnexions loggées côté serveur. `engine_common` ré-exporte `bevy_replicon`, `bevy_replicon_quinnet` et `bevy_quinnet`.
+- Réel aujourd'hui : `NetPlugin` (`engine/common/src/net.rs` = `RepliconPlugins` + `RepliconQuinnetPlugins`), ajouté une seule fois par `EnginePlugin` dans tous les modes. `ServerPlugin` ouvre l'endpoint (host/server, gardé par `is_server`), `ClientPlugin` ouvre la connexion (client), tous deux à `OnEnter(EngineState::InGame)`. Le host n'ouvre aucune connexion : son joueur local est `ClientId::Server`. Connexions et déconnexions loggées côté serveur. `engine_common` ré-exporte `bevy_replicon`, `bevy_replicon_quinnet` et `bevy_quinnet`.
 - Réplication : `app.register_game_component::<T>()` (trait `GameComponentExt`, dans le prelude) = `register_type` + `replicate`. `ProtocolPlugin` (inclus dans `NetPlugin`, séparable pour tester sans quinnet) enregistre `DefId`, `Position`, `Rotation`. `Velocity` n'est pas répliqué (pas de prédiction en V1). Côté client, les composants de def absents d'une entité `Remote` sont insérés depuis la copie locale des defs.
 - Sécurité : certificat serveur auto-signé, jamais vérifié par le client (`SkipVerification`). LAN/dev uniquement : pas d'authentification du serveur (attaque de l'homme du milieu possible), à revoir avant tout jeu en ligne public.
 - Tests : `engine/tests/net.rs` (serveur + client réels sur localhost, port choisi par l'OS) ; `engine/common/tests/replication.rs` (réplication des defs via le backend de test replicon, sans réseau).
@@ -97,7 +102,7 @@ Def d'entité = prototype `assets/defs/<id>.def.ron` ; **l'id est le nom du fich
 - Hors V1 : prédiction client / interpolation (le jeu sera net en LAN, latence visible en distant).
 
 ### UI
-bevy_egui (D2). Le moteur fournit : écran de connexion (host / rejoindre), et des helpers pour afficher un composant ou une resource en une ligne (HUD).
+bevy_egui (D2). Réel : `UiPlugin` (`engine/client/src/ui.rs`, fenêtre requise, absent des tests headless) affiche l'écran de connexion en `EngineState::Menu` : "Héberger", champ adresse + "Rejoindre" (même parsing que la CLI, `Mode::parse_addr`, erreur affichée dans l'UI), "Quitter". Pas de thème ; retour au menu après déconnexion hors périmètre (simple log). HUD : `app.add_hud::<C>(..)` / `add_hud_resource::<R>(..)` (`engine/client/src/hud.rs`), dessinés par `UiPlugin` en `InGame`. Détails : [docs/ui.md](ui.md).
 
 ## 4. Décisions (validées 2026-10-15)
 
@@ -107,5 +112,6 @@ bevy_egui (D2). Le moteur fournit : écran de connexion (host / rejoindre), et d
 | D2 | UI | bevy_egui 0.43 | bevy_ui natif + helpers | le moins de code par écran ; look "outil", stylable par thème |
 | D3 | Composants dans les defs | réflexion Bevy, nom court (`"Health": (30)`) | enum fermé + map libre | un composant de jeu = 1 ligne d'enregistrement, utilisable en data et répliqué ; erreur de nom détectée au chargement, pas à la compilation |
 | D4 | Collisions / physique | hors moteur en V1 (test de distance dans le jeu) | avian2d | une physique = question à enjeu pour une V2 |
+| D5 | Mode de la partie | resource `Mode` choisie à la CLI ou au menu (`StartGame`), états `Loading/Menu/InGame`, run condition `is_server` sur les systèmes serveur | mode fixé au lancement (un plugin par mode) | l'écran de connexion impose de choisir host/client au runtime : le serveur est toujours présent dans le binaire avec fenêtre, et rien d'autre qu'une run condition ne restreint un système au serveur |
 
 Hors V1 : prédiction client / interpolation.

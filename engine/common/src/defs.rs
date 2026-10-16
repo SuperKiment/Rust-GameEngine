@@ -6,7 +6,7 @@
 
 use std::{fmt, sync::Arc};
 
-use crate::world::WorldConfig;
+use crate::{Mode, StartGame, world::WorldConfig};
 use bevy::{
     asset::{AssetLoader, LoadContext, LoadState, LoadedFolder, io::Reader},
     ecs::{error::BevyError, reflect::ReflectComponent},
@@ -23,12 +23,27 @@ use serde::{
     de::{DeserializeSeed, Error as _, MapAccess, Visitor},
 };
 
-/// Rendu d'une def (le rendu arrive en M4).
+/// Rendu d'une def, affiché par le client. Les couleurs sont validées au chargement de la def.
 #[derive(Deserialize, Clone, Debug, PartialEq)]
 pub enum Visual {
     Circle { radius: f32, color: String },
     Rect { size: Vec2, color: String },
     Sprite(String),
+}
+
+impl Visual {
+    /// Texte de la couleur (`None` pour un sprite).
+    fn color_str(&self) -> Option<&str> {
+        match self {
+            Visual::Circle { color, .. } | Visual::Rect { color, .. } => Some(color),
+            Visual::Sprite(_) => None,
+        }
+    }
+
+    /// Couleur de la forme (`None` pour un sprite). Le loader garantit qu'elle se parse.
+    pub fn color(&self) -> Option<Srgba> {
+        Srgba::hex(self.color_str()?).ok()
+    }
 }
 
 /// Prototype d'entité chargé depuis `<id>.def.ron`. L'id est le nom du fichier.
@@ -40,12 +55,14 @@ pub struct EntityDef {
     pub components: Vec<Box<dyn PartialReflect>>,
 }
 
-/// `Loading` tant que `defs/` et `world.ron` ne sont pas chargés, puis `Ready`.
+/// `Loading` tant que `defs/` et `world.ron` ne sont pas chargés. Ensuite `InGame` si un `Mode`
+/// est déjà fourni (CLI), sinon `Menu` jusqu'au `StartGame` du menu.
 #[derive(States, Default, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum EngineState {
     #[default]
     Loading,
-    Ready,
+    Menu,
+    InGame,
 }
 
 /// Id de def -> handle. Reconstruit quand le dossier `defs/` change.
@@ -55,6 +72,15 @@ pub struct DefRegistry(HashMap<String, Handle<EntityDef>>);
 impl DefRegistry {
     pub fn get(&self, id: &str) -> Option<&Handle<EntityDef>> {
         self.0.get(id)
+    }
+
+    /// Def `id` si elle est enregistrée et chargée.
+    pub fn def<'a>(&self, id: &str, defs: &'a Assets<EntityDef>) -> Option<&'a EntityDef> {
+        defs.get(self.0.get(id)?)
+    }
+
+    pub fn insert(&mut self, id: impl Into<String>, handle: Handle<EntityDef>) {
+        self.0.insert(id.into(), handle);
     }
 
     pub fn len(&self) -> usize {
@@ -154,7 +180,17 @@ impl<'de> Visitor<'de> for DefSeed<'_> {
         };
         while let Some(field) = map.next_key::<String>()? {
             match field.as_str() {
-                "visual" => def.visual = map.next_value()?,
+                "visual" => {
+                    def.visual = map.next_value()?;
+                    let color = def.visual.as_ref().and_then(Visual::color_str);
+                    if let Some(color) = color
+                        && let Err(e) = Srgba::hex(color)
+                    {
+                        return Err(A::Error::custom(format!(
+                            "visual : couleur `{color}` invalide ({e}), attendu \"#rrggbb\""
+                        )));
+                    }
+                }
                 "layer" => def.layer = map.next_value()?,
                 "components" => def.components = map.next_value_seed(ComponentsSeed(self.0))?,
                 _ => return Err(A::Error::unknown_field(&field, FIELDS)),
@@ -243,7 +279,8 @@ struct DefHandles {
     world: Handle<WorldConfig>,
 }
 
-/// Charge `defs/` + `world.ron`, maintient `DefRegistry` et `WorldConfig`, pilote `EngineState`.
+/// Charge `defs/` + `world.ron`, maintient `DefRegistry` et `WorldConfig`, pilote `EngineState`
+/// (y compris `StartGame` : insère le `Mode` et passe en `InGame`).
 /// Côté client, reconstruit les composants de def des entités répliquées (`DefId`).
 /// Demande `AssetPlugin` et `StatesPlugin` déjà ajoutés.
 pub struct DefsPlugin;
@@ -256,6 +293,7 @@ impl Plugin for DefsPlugin {
             .init_asset_loader::<WorldConfigLoader>()
             .init_state::<EngineState>()
             .init_resource::<DefRegistry>()
+            .add_message::<StartGame>()
             .add_observer(crate::spawn::rebuild_from_def)
             .add_systems(Startup, start_loading)
             .add_systems(
@@ -267,7 +305,8 @@ impl Plugin for DefsPlugin {
                 )
                     .chain(),
             )
-            .add_systems(OnEnter(EngineState::Ready), |defs: Res<DefRegistry>| {
+            .add_systems(Update, start_game.run_if(in_state(EngineState::Menu)))
+            .add_systems(OnExit(EngineState::Loading), |defs: Res<DefRegistry>| {
                 info!("defs ready: {}", defs.len());
             });
     }
@@ -328,12 +367,27 @@ fn sync_registry(
     }
 }
 
-/// `Loading` -> `Ready` quand tout est chargé ; en cas d'échec, log l'erreur et reste en `Loading`.
+/// Menu : le `StartGame` insère le `Mode` choisi et lance la partie.
+fn start_game(
+    mut requests: MessageReader<StartGame>,
+    mut commands: Commands,
+    mut next: ResMut<NextState<EngineState>>,
+) {
+    // Un seul démarrage : si plusieurs messages arrivent dans la même frame, le premier gagne.
+    if let Some(StartGame(mode)) = requests.read().next() {
+        commands.insert_resource(mode.clone());
+        next.set(EngineState::InGame);
+    }
+}
+
+/// `Loading` -> `InGame` (mode déjà connu) ou `Menu` quand tout est chargé ;
+/// en cas d'échec, log l'erreur et reste en `Loading`.
 fn check_ready(
     handles: Res<DefHandles>,
     server: Res<AssetServer>,
     config: Option<Res<WorldConfig>>,
     folders: Res<Assets<LoadedFolder>>,
+    mode: Option<Res<Mode>>,
     mut next: ResMut<NextState<EngineState>>,
     mut failed: Local<Option<Arc<str>>>,
 ) {
@@ -355,7 +409,11 @@ fn check_ready(
         && server.is_loaded_with_dependencies(&handles.world);
     // Le registre se reconstruit sur l'event du dossier : on attend qu'il l'ait fait.
     if loaded && config.is_some() && folders.contains(&handles.folder) {
-        next.set(EngineState::Ready);
+        next.set(if mode.is_some() {
+            EngineState::InGame
+        } else {
+            EngineState::Menu
+        });
     }
 }
 
@@ -398,6 +456,23 @@ mod tests {
             def.components[0].try_downcast_ref::<Health>(),
             Some(&Health(7))
         );
+    }
+
+    #[test]
+    fn visual_colors() {
+        let def = parse_def(
+            br##"(visual: Circle(radius: 2.0, color: "#ff0000"))"##,
+            &registry(),
+        )
+        .unwrap();
+        assert_eq!(def.visual.unwrap().color(), Some(Srgba::rgb(1.0, 0.0, 0.0)));
+        for bad in ["rouge", "#ff000", "#gg0000", ""] {
+            let src = format!(r#"(visual: Rect(size: (1.0, 1.0), color: "{bad}"))"#);
+            assert!(
+                err(&src).contains(&format!("couleur `{bad}` invalide")),
+                "{bad}"
+            );
+        }
     }
 
     #[test]

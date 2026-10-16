@@ -13,30 +13,32 @@ use engine_common::bevy_replicon::prelude::{
 use engine_common::bevy_replicon::shared::backend::connected_client::NetworkId;
 use engine_common::bevy_replicon_quinnet::ChannelsConfigurationExt;
 use engine_common::{
-    EngineState, Mode, OwnPlayer, Owner, Position, SpawnDef, Velocity, WorldConfig,
+    EngineState, Mode, OwnPlayer, Owner, Position, SpawnDef, Velocity, WorldConfig, is_server,
 };
 
 /// Def de l'entité joueur : `assets/defs/player.def.ron` du jeu.
 const PLAYER_DEF: &str = "player";
 
+/// Présent dans tous les modes avec fenêtre (le mode peut être choisi au menu) : les systèmes sont
+/// gardés par `is_server`. Les observers réseau ne se déclenchent que sur un serveur.
 pub struct ServerPlugin;
 
 impl Plugin for ServerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
-            OnEnter(EngineState::Ready),
-            (start_listening, spawn_host_player),
+            OnEnter(EngineState::InGame),
+            (start_listening, spawn_host_player).run_if(is_server),
         )
         .add_observer(log_client_connected)
         .add_observer(log_client_disconnected)
         .add_observer(spawn_client_player)
         .add_observer(despawn_client_player)
-        .add_systems(FixedUpdate, integrate_velocity);
+        .add_systems(FixedUpdate, integrate_velocity.run_if(is_server));
     }
 }
 
-/// Ouvre l'endpoint réseau sur `0.0.0.0:<port>` (modes host et server), une fois les defs prêtes :
-/// le réseau s'ouvre quand les données sont prêtes (sinon les entités arrivent sans leurs defs).
+/// Ouvre l'endpoint réseau sur `0.0.0.0:<port>` (modes host et server) au début de la partie :
+/// les defs sont prêtes (sinon les entités arrivent sans leurs defs).
 /// Certificat auto-signé : le client ne le vérifie pas (LAN/dev, voir docs/architecture.md).
 fn start_listening(
     mode: Res<Mode>,
