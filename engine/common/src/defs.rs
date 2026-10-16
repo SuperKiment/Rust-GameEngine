@@ -244,6 +244,7 @@ struct DefHandles {
 }
 
 /// Charge `defs/` + `world.ron`, maintient `DefRegistry` et `WorldConfig`, pilote `EngineState`.
+/// Côté client, reconstruit les composants de def des entités répliquées (`DefId`).
 /// Demande `AssetPlugin` et `StatesPlugin` déjà ajoutés.
 pub struct DefsPlugin;
 
@@ -255,6 +256,7 @@ impl Plugin for DefsPlugin {
             .init_asset_loader::<WorldConfigLoader>()
             .init_state::<EngineState>()
             .init_resource::<DefRegistry>()
+            .add_observer(crate::spawn::rebuild_from_def)
             .add_systems(Startup, start_loading)
             .add_systems(
                 Update,

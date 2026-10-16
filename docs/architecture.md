@@ -9,13 +9,13 @@
 | 63-64 | 3. Briques |
 | 65-69 | — World 2D |
 | 70-87 | — Data-driven (defs RON) |
-| 88-93 | — Réseau |
-| 94-96 | — UI |
-| 97-106 | 4. Décisions (validées 2026-10-15) |
+| 88-98 | — Réseau |
+| 99-101 | — UI |
+| 102-111 | 4. Décisions (validées 2026-10-15) |
 
 # Architecture du moteur
 
-Statut : **M1 : socle réel ; le reste = cible**. Mise à jour à chaque milestone pour refléter le code réel. Suivi des étapes : milestones M0-M5 sur GitHub.
+Statut : **M1 : socle réel ; M3 : réseau et réplication des defs en cours ; le reste = cible**. Mise à jour à chaque milestone pour refléter le code réel. Suivi des étapes : milestones M0-M5 sur GitHub.
 
 ## 1. Objectif
 Un moteur 2D minimal sur lequel un jeu se génère avec un minimum de tokens :
@@ -44,19 +44,19 @@ games/
 
 ### Flux
 1. Serveur et client chargent les mêmes defs (`common`).
-2. Le serveur spawn une entité depuis une def : `spawn_def("goblin", pos)`.
-3. Replicon réplique `DefId` + composants dynamiques marqués.
-4. Le client reçoit `DefId`, retrouve visuel et données statiques dans sa copie des defs, affiche.
+2. Le serveur spawn une entité depuis une def : `spawn_def("goblin", pos)` (ajoute `Replicated`). Le réseau n'est ouvert qu'à `EngineState::Ready` : les defs sont chargées avant toute réplication.
+3. Replicon réplique `DefId`, `Position`, `Rotation` + les composants de jeu enregistrés avec `register_game_component`.
+4. Le client reçoit `DefId`, retrouve les composants statiques dans sa copie des defs (observer de `DefsPlugin`, valeur répliquée prioritaire), affiche (rendu : M4).
 5. Le client envoie des inputs (messages client → serveur), le serveur les applique.
 
 ### Modes de lancement (un seul binaire par jeu)
 | Commande | Plugins |
 |---|---|
-| `cargo run -p sample -- host` (défaut) | `DefaultPlugins` (fenêtre) + `ServerPlugin` + `ClientPlugin`. Solo = host sans autre joueur. |
-| `cargo run -p sample -- server` | `MinimalPlugins` (boucle 64 Hz = pas de `FixedUpdate`) + `LogPlugin` + `ServerPlugin`, sans fenêtre. |
-| `cargo run -p sample -- client <addr>` | `DefaultPlugins` + `ClientPlugin`. `<addr>` obligatoire. |
+| `cargo run -p sample -- host [port]` (défaut) | `DefaultPlugins` (fenêtre) + `NetPlugin` + `ServerPlugin` + `ClientPlugin`. Écoute sur `0.0.0.0:<port>`. Solo = host sans autre joueur. |
+| `cargo run -p sample -- server [port]` | `MinimalPlugins` (boucle 64 Hz = pas de `FixedUpdate`) + `LogPlugin` + `NetPlugin` + `ServerPlugin`, sans fenêtre. Écoute sur `0.0.0.0:<port>`. |
+| `cargo run -p sample -- client <ip[:port]>` | `DefaultPlugins` + `NetPlugin` + `ClientPlugin`. `<ip>` obligatoire (`localhost` accepté, IPv4 uniquement). |
 
-Le réseau (rejoindre `<addr>`) arrive en M3.
+Port par défaut : `DEFAULT_PORT` = 5000 (`engine/common/src/net.rs`), pris quand `[port]` ou `:port` est absent. Port occupé : le `server` quitte avec une erreur, le `host` log l'erreur et reste jouable en solo (sans accueillir de client).
 
 Limite connue : un seul binaire par jeu, donc le mode `server` d'un jeu lie quand même `bevy_render` (seul `engine_server` en est exempt). Serveur sans rendu = features cargo sur `engine` ou binaire serveur séparé : question à enjeu, non traitée en V1.
 
@@ -88,7 +88,12 @@ Def d'entité = prototype `assets/defs/<id>.def.ron` ; **l'id est le nom du fich
 ### Réseau
 - `bevy_replicon` : réplication serveur-autoritaire des composants enregistrés.
 - Transport : bevy_replicon_quinnet (QUIC) (D1).
-- Connexion : un client connecté → le serveur spawn l'entité joueur (def `player` du jeu) et la lie au client.
+- Réel aujourd'hui : `NetPlugin` (`engine/common/src/net.rs` = `RepliconPlugins` + `RepliconQuinnetPlugins`), ajouté une seule fois par `EnginePlugin` dans les 3 modes. `ServerPlugin` ouvre l'endpoint (host/server), `ClientPlugin` ouvre la connexion (client), tous deux à `OnEnter(EngineState::Ready)`. Le host n'ouvre aucune connexion : son joueur local est `ClientId::Server`. Connexions et déconnexions loggées côté serveur. `engine_common` ré-exporte `bevy_replicon`, `bevy_replicon_quinnet` et `bevy_quinnet`.
+- Réplication : `app.register_game_component::<T>()` (trait `GameComponentExt`, dans le prelude) = `register_type` + `replicate`. `ProtocolPlugin` (inclus dans `NetPlugin`, séparable pour tester sans quinnet) enregistre `DefId`, `Position`, `Rotation`. `Velocity` n'est pas répliqué (pas de prédiction en V1). Côté client, les composants de def absents d'une entité `Remote` sont insérés depuis la copie locale des defs.
+- Sécurité : certificat serveur auto-signé, jamais vérifié par le client (`SkipVerification`). LAN/dev uniquement : pas d'authentification du serveur (attaque de l'homme du milieu possible), à revoir avant tout jeu en ligne public.
+- Tests : `engine/tests/net.rs` (serveur + client réels sur localhost, port choisi par l'OS) ; `engine/common/tests/replication.rs` (réplication des defs via le backend de test replicon, sans réseau).
+- Joueur par client (réel) : un client autorisé → le serveur spawn l'entité joueur (def `player` du jeu, `Owner` = client) et lui envoie `OwnPlayer` ; le client pose `LocalPlayer`. Despawn à la déconnexion. Le host a son propre joueur (`ClientId::Server`), un serveur dédié aucun.
+- Inputs (réel) : `app.register_input::<I>()` (trait `GameInputExt`) ; le client écrit `MessageWriter<I>`, le serveur lit `I` comme composant du joueur. Détails, exemple et limites : [networking.md](networking.md).
 - Hors V1 : prédiction client / interpolation (le jeu sera net en LAN, latence visible en distant).
 
 ### UI

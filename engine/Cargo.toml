@@ -8,3 +8,6 @@ engine_common = { path = "common" }
 engine_server = { path = "server" }
 engine_client = { path = "client" }
 bevy = { workspace = true, features = ["2d", "file_watcher"] }
+
+[dev-dependencies]
+serde.workspace = true
